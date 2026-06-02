@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
         $this->call(ApiClientSeeder::class);
         $this->call(AuthenticationRoleSeeder::class);
         $this->call(AuthenticationUserSeeder::class);
+        $this->call(CatalogSeeder::class);
 
         // User::factory(10)->create();
 

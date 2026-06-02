@@ -140,7 +140,7 @@ class AuthenticationController extends Controller
         return $this->apiResponse('00', 'success', $this->userResponseData($user, $session, true));
     }
 
-    private function apiTokenFromRequest(Request $request): ?ApiToken
+    protected function apiTokenFromRequest(Request $request): ?ApiToken
     {
         $token = $request->header('token') ?: $request->bearerToken();
 
@@ -197,7 +197,7 @@ class AuthenticationController extends Controller
         return $data;
     }
 
-    private function apiResponse(
+    protected function apiResponse(
         string $code,
         string $status,
         mixed $data = null,

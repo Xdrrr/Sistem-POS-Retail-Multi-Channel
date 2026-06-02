@@ -127,7 +127,7 @@ class TokenAuthController extends Controller
         ]);
     }
 
-    private function apiResponse(
+    protected function apiResponse(
         string $code,
         string $status,
         mixed $data = null,
