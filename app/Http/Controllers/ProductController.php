@@ -60,15 +60,26 @@ class ProductController extends Controller
         return $this->apiResponse('00', 'success', $this->productData($product));
     }
 
-    public function update(Request $request, string $guid): JsonResponse
+    public function update(Request $request): JsonResponse
     {
-        $product = $this->findProduct($guid);
+        $validated = $request->validate([
+            'guid' => ['required', 'string', Rule::exists('products', 'guid')],
+            'category_guid' => ['required', 'string', Rule::exists('categories', 'guid')],
+            'group_guid' => ['required', 'string', Rule::exists('product_groups', 'guid')],
+            'name' => ['required', 'string', 'max:150'],
+            'description' => ['nullable', 'string'],
+            'price' => ['nullable', 'numeric', 'min:0'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $product = $this->findProduct($validated['guid']);
 
         if (! $product) {
             return $this->apiResponse('01', 'failed', null, 'Product not found.', 'Produk tidak ditemukan.', 404);
         }
 
-        $validator = Validator::make($request->all(), $this->rules($product));
+        $rules = $this->rules($product);
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);

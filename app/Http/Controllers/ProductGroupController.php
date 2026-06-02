@@ -55,9 +55,16 @@ class ProductGroupController extends Controller
         return $this->apiResponse('00', 'success', $this->groupData($group));
     }
 
-    public function update(Request $request, string $guid): JsonResponse
+    public function update(Request $request): JsonResponse
     {
-        $group = $this->findGroup($guid);
+        $validated = $request->validate([
+            'guid' => ['required', 'string', Rule::exists('product_groups', 'guid')],
+            'name' => ['required', 'string', 'max:100'],
+            'description' => ['nullable', 'string'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $group = $this->findGroup($validated['guid']);
 
         if (! $group) {
             return $this->apiResponse('01', 'failed', null, 'Group not found.', 'Group tidak ditemukan.', 404);

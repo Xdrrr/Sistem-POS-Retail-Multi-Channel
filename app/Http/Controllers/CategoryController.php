@@ -55,9 +55,16 @@ class CategoryController extends Controller
         return $this->apiResponse('00', 'success', $this->categoryData($category));
     }
 
-    public function update(Request $request, string $guid): JsonResponse
+    public function update(Request $request): JsonResponse
     {
-        $category = $this->findCategory($guid);
+        $validated = $request->validate([
+            'guid' => ['required', 'string', Rule::exists('categories', 'guid')],
+            'name' => ['required', 'string', 'max:100'],
+            'description' => ['nullable', 'string'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $category = $this->findCategory($validated['guid']);
 
         if (! $category) {
             return $this->apiResponse('01', 'failed', null, 'Category not found.', 'Kategori tidak ditemukan.', 404);
