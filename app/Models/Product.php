@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['guid', 'category_id', 'group_id', 'name', 'description', 'price', 'is_active'])]
 class Product extends Model
 {
+    protected $table = 'product.products';
+
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);

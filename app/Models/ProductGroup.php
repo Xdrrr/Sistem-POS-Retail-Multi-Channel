@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['guid', 'name', 'description', 'is_active'])]
 class ProductGroup extends Model
 {
-    protected $table = 'product_groups';
+    protected $table = 'product.groups';
 
     public function products(): HasMany
     {

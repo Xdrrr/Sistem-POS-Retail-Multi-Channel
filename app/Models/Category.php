@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['guid', 'name', 'description', 'is_active'])]
 class Category extends Model
 {
+    protected $table = 'product.categories';
+
     public function products(): HasMany
     {
         return $this->hasMany(Product::class);

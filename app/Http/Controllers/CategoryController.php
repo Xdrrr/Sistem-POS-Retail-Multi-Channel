@@ -35,7 +35,7 @@ class CategoryController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'name' => ['required', 'string', 'max:100', Rule::unique('categories', 'name')],
+            'name' => ['required', 'string', 'max:100', Rule::unique(Category::class, 'name')],
             'description' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -69,7 +69,7 @@ class CategoryController extends Controller
     public function update(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'guid' => ['required', 'string', Rule::exists('categories', 'guid')],
+            'guid' => ['required', 'string', Rule::exists(Category::class, 'guid')],
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
@@ -82,7 +82,7 @@ class CategoryController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'name' => ['required', 'string', 'max:100', Rule::unique('categories', 'name')->ignore($category->id)],
+            'name' => ['required', 'string', 'max:100', Rule::unique(Category::class, 'name')->ignore($category->id)],
             'description' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
         ]);

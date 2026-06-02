@@ -35,7 +35,7 @@ class ProductGroupController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'name' => ['required', 'string', 'max:100', Rule::unique('product_groups', 'name')],
+            'name' => ['required', 'string', 'max:100', Rule::unique(ProductGroup::class, 'name')],
             'description' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -69,7 +69,7 @@ class ProductGroupController extends Controller
     public function update(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'guid' => ['required', 'string', Rule::exists('product_groups', 'guid')],
+            'guid' => ['required', 'string', Rule::exists(ProductGroup::class, 'guid')],
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
@@ -82,7 +82,7 @@ class ProductGroupController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'name' => ['required', 'string', 'max:100', Rule::unique('product_groups', 'name')->ignore($group->id)],
+            'name' => ['required', 'string', 'max:100', Rule::unique(ProductGroup::class, 'name')->ignore($group->id)],
             'description' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
         ]);

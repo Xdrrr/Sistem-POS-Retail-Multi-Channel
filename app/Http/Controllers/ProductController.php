@@ -73,9 +73,9 @@ class ProductController extends Controller
     public function update(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'guid' => ['required', 'string', Rule::exists('products', 'guid')],
-            'category_guid' => ['required', 'string', Rule::exists('categories', 'guid')],
-            'group_guid' => ['required', 'string', Rule::exists('product_groups', 'guid')],
+            'guid' => ['required', 'string', Rule::exists(Product::class, 'guid')],
+            'category_guid' => ['required', 'string', Rule::exists(Category::class, 'guid')],
+            'group_guid' => ['required', 'string', Rule::exists(ProductGroup::class, 'guid')],
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string'],
             'price' => ['nullable', 'numeric', 'min:0'],
@@ -135,9 +135,9 @@ class ProductController extends Controller
     private function rules(?Product $product = null): array
     {
         return [
-            'category_guid' => ['required', 'string', Rule::exists('categories', 'guid')],
-            'group_guid' => ['required', 'string', Rule::exists('product_groups', 'guid')],
-            'name' => ['required', 'string', 'max:150', Rule::unique('products', 'name')->ignore($product?->id)],
+            'category_guid' => ['required', 'string', Rule::exists(Category::class, 'guid')],
+            'group_guid' => ['required', 'string', Rule::exists(ProductGroup::class, 'guid')],
+            'name' => ['required', 'string', 'max:150', Rule::unique(Product::class, 'name')->ignore($product?->id)],
             'description' => ['nullable', 'string'],
             'price' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
