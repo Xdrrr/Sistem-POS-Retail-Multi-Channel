@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Traits\Filterable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -11,11 +12,21 @@ use Illuminate\Validation\Rule;
 
 class CategoryController extends Controller
 {
-    public function index(): JsonResponse
+    use Filterable;
+
+    public function index(Request $request): JsonResponse
     {
-        $categories = Category::query()
-            ->orderBy('name')
-            ->get()
+        $validated = $request->validate([
+            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'order' => ['nullable', 'string', 'in:name,description,is_active,created_at,updated_at'],
+            'sort' => ['nullable', 'string', 'in:ASC,DESC'],
+        ]);
+
+        $query = Category::query();
+        $this->applyFilter($request, $query, ['guid']);
+
+        $categories = $query->get()
             ->map(fn (Category $category): array => $this->categoryData($category));
 
         return $this->apiResponse('00', 'success', $categories);

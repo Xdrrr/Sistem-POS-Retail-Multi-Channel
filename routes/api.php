@@ -23,22 +23,22 @@ Route::prefix('authentication')->group(function (): void {
 
 Route::middleware(EnsureApiToken::class)->group(function (): void {
     // Categories
-    Route::get('/categories', [CategoryController::class, 'index']);
-    Route::post('/categories', [CategoryController::class, 'store']);
+    Route::post('/categories', [CategoryController::class, 'index']);
+    Route::post('/categories/store', [CategoryController::class, 'store']);
     Route::get('/categories/{guid}', [CategoryController::class, 'show']);
     Route::put('/categories/update', [CategoryController::class, 'update']);
     Route::delete('/categories/{guid}', [CategoryController::class, 'destroy']);
     
     // Groups
-    Route::get('/groups', [ProductGroupController::class, 'index']);
-    Route::post('/groups', [ProductGroupController::class, 'store']);
+    Route::post('/groups', [ProductGroupController::class, 'index']);
+    Route::post('/groups/store', [ProductGroupController::class, 'store']);
     Route::get('/groups/{guid}', [ProductGroupController::class, 'show']);
     Route::put('/groups/update', [ProductGroupController::class, 'update']);
     Route::delete('/groups/{guid}', [ProductGroupController::class, 'destroy']);
     
     // Products
-    Route::get('/products', [ProductController::class, 'index']);
-    Route::post('/products', [ProductController::class, 'store']);
+    Route::post('/products', [ProductController::class, 'index']);
+    Route::post('/products/store', [ProductController::class, 'store']);
     Route::get('/products/{guid}', [ProductController::class, 'show']);
     Route::put('/products/update', [ProductController::class, 'update']);
     Route::delete('/products/{guid}', [ProductController::class, 'destroy']);

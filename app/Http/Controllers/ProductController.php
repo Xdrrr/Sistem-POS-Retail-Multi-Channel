@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductGroup;
+use App\Traits\Filterable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -13,12 +14,21 @@ use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
-    public function index(): JsonResponse
+    use Filterable;
+
+    public function index(Request $request): JsonResponse
     {
-        $products = Product::query()
-            ->with(['category', 'group'])
-            ->orderBy('name')
-            ->get()
+        $validated = $request->validate([
+            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'order' => ['nullable', 'string', 'in:name,description,price,is_active,created_at,updated_at'],
+            'sort' => ['nullable', 'string', 'in:ASC,DESC'],
+        ]);
+
+        $query = Product::query()->with(['category', 'group']);
+        $this->applyFilter($request, $query, ['guid', 'category_id', 'group_id']);
+
+        $products = $query->get()
             ->map(fn (Product $product): array => $this->productData($product));
 
         return $this->apiResponse('00', 'success', $products);
