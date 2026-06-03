@@ -1,6 +1,8 @@
 <script setup>
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import AppNavbar from '../../Components/AppNavbar.vue';
+import AppSidebar from '../../Components/AppSidebar.vue';
 
 const props = defineProps({
     profile: { type: Object, required: true },
@@ -48,60 +50,26 @@ const submit = () => {
 
 <template>
     <div class="dashboard-shell">
-        <nav class="side-nav" aria-label="Main navigation">
-            <div class="side-nav__main">
-                <div class="branch-card">
-                    <div class="branch-card__icon">
-                        <span class="material-symbols-outlined">storefront</span>
-                    </div>
-                    <div class="branch-card__name">Main Branch</div>
-                    <div class="branch-card__terminal">Terminal 01</div>
-                </div>
+        <AppSidebar />
 
-                <div class="nav-list">
-                    <Link
-                        v-for="item in navItems"
-                        :key="item.label"
-                        class="nav-item"
-                        :class="{ 'nav-item--active': item.active }"
-                        :href="item.href"
-                    >
-                        <span class="material-symbols-outlined" :class="{ fill: item.active }">{{ item.icon }}</span>
-                        <span>{{ item.label }}</span>
-                    </Link>
-                </div>
-            </div>
-
-            <button class="nav-item nav-item--footer" type="button">
-                <span class="material-symbols-outlined">help</span>
-                <span>Help</span>
-            </button>
-        </nav>
-
-        <header class="top-bar">
-            <div class="top-bar__left">
+        <AppNavbar :server-time="serverTime" :show-shift="false">
+            <template #left>
                 <div class="brand">RetailPOS</div>
-            </div>
+                <!-- <label class="search-box">
+                    <span class="material-symbols-outlined">search</span>
+                    <input v-model="productSearch" type="text" placeholder="Search products..." />
+                </label> -->
+            </template>
 
-            <div class="top-bar__right">
+            <template #actions>
+                <Link class="icon-button" href="/" aria-label="Home">
+                    <span class="material-symbols-outlined">dashboard</span>
+                </Link>
                 <Link class="icon-button" href="/catalog" aria-label="Catalog">
                     <span class="material-symbols-outlined">inventory_2</span>
                 </Link>
-                <div class="top-bar__divider"></div>
-                <div class="profile">
-                    <div>
-                        <strong>{{ displayName }}</strong>
-                        <span>{{ displayRole }}</span>
-                    </div>
-                    <div class="profile__avatar">
-                        <span class="material-symbols-outlined">person</span>
-                    </div>
-                </div>
-                <Link class="icon-button" href="/logout" method="post" as="button" aria-label="Logout">
-                    <span class="material-symbols-outlined">logout</span>
-                </Link>
-            </div>
-        </header>
+            </template>
+        </AppNavbar>
 
         <main class="content">
             <section class="page-title">
@@ -345,6 +313,7 @@ button {
 
 .top-bar__left,
 .top-bar__right,
+.search-box 
 .profile,
 .page-title,
 .settings-panel__header,
@@ -384,6 +353,17 @@ button {
     height: 32px;
     margin: 0 8px;
     background: #c6c5d4;
+}
+
+.search-box {
+    position: relative;
+    width: 300px;
+}
+
+.search-box span {
+    position: absolute;
+    left: 12px;
+    color: #454652;
 }
 
 .profile {
@@ -571,6 +551,12 @@ textarea {
     padding: 10px 12px;
 }
 
+.search-box input {
+    height: 40px;
+    border-radius: 999px;
+    padding-left: 40px;
+}
+
 input:focus,
 select:focus,
 textarea:focus {
@@ -618,6 +604,7 @@ small {
 }
 
 @media (max-width: 900px) {
+    .search-box,
     .profile-grid {
         grid-template-columns: 1fr;
     }

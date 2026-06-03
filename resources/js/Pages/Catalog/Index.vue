@@ -1,6 +1,8 @@
 <script setup>
-import { Link, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { Link, useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import AppNavbar from '../../Components/AppNavbar.vue';
+import AppSidebar from '../../Components/AppSidebar.vue';
 
 const props = defineProps({
     categories: { type: Array, default: () => [] },
@@ -11,50 +13,6 @@ const props = defineProps({
         default: () => '',
     },
 });
-
-const page = usePage();
-const authUser = computed(() => page.props.auth?.user);
-const displayName = computed(() => authUser.value?.detail?.full_name || authUser.value?.username || 'User');
-const displayRole = computed(() => authUser.value?.role || 'Staff');
-
-// Timer untuk update waktu setiap detik
-const currentTime = ref(props.serverTime);
-const displayTime = computed(() => currentTime.value);
-
-// Update time every second
-onMounted(() => {
-    const updateTime = () => {
-        const now = new Date();
-        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-        
-        const dayName = days[now.getDay()];
-        const day = String(now.getDate()).padStart(2, '0');
-        const month = months[now.getMonth()];
-        const year = now.getFullYear();
-        const hours = String(now.getHours() % 12 || 12).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
-        
-        currentTime.value = `${dayName}, ${day} ${month} ${year} at ${hours}:${minutes} ${ampm}`;
-    };
-    
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    
-    onUnmounted(() => clearInterval(interval));
-});
-
-const navItems = [
-    { label: 'Home', icon: 'home', href: '/' },
-    { label: 'New Sale', icon: 'add_shopping_cart', href: '/orders' },
-    { label: 'Orders', icon: 'receipt_long', href: '/orders' },
-    { label: 'Shift', icon: 'calendar_today', href: '#' },
-    { label: 'Reports', icon: 'bar_chart', href: '#' },
-    { label: 'Products', icon: 'inventory_2', href: '/catalog', active: true },
-    { label: 'Sync Center', icon: 'sync', href: '#' },
-    { label: 'Settings', icon: 'settings', href: '/settings/profile' },
-];
 
 const tabs = [
     { key: 'products', label: 'Products', singular: 'Product', icon: 'inventory_2' },
@@ -194,75 +152,23 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
 
 <template>
     <div class="dashboard-shell">
-        <nav class="side-nav" aria-label="Main navigation">
-            <div class="side-nav__main">
-                <div class="branch-card">
-                    <div class="branch-card__icon">
-                        <span class="material-symbols-outlined">storefront</span>
-                    </div>
-                    <div class="branch-card__name">Main Branch</div>
-                    <div class="branch-card__terminal">Terminal 01</div>
-                </div>
+        <AppSidebar />
 
-                <div class="nav-list">
-                    <Link
-                        v-for="item in navItems"
-                        :key="item.label"
-                        class="nav-item"
-                        :class="{ 'nav-item--active': item.active }"
-                        :href="item.href"
-                    >
-                        <span class="material-symbols-outlined" :class="{ fill: item.active }">{{ item.icon }}</span>
-                        <span>{{ item.label }}</span>
-                    </Link>
-                </div>
-            </div>
-
-            <button class="nav-item nav-item--footer" type="button">
-                <span class="material-symbols-outlined">help</span>
-                <span>Help</span>
-            </button>
-        </nav>
-
-        <header class="top-bar">
-            <div class="top-bar__left">
+        <AppNavbar :server-time="serverTime">
+            <template #left>
                 <div class="brand">RetailPOS</div>
-                <div class="current-time">
-                    <span class="material-symbols-outlined">schedule</span>
-                    <span>{{ displayTime }}</span>
-                </div>
                 <label class="search-box">
                     <span class="material-symbols-outlined">search</span>
                     <input type="text" placeholder="Search catalog..." />
                 </label>
-            </div>
+            </template>
 
-            <div class="top-bar__right">
+            <template #actions>
                 <Link class="icon-button" href="/" aria-label="Home">
                     <span class="material-symbols-outlined">dashboard</span>
                 </Link>
-                <!-- <button class="icon-button" aria-label="Sync status" type="button">
-                    <span class="material-symbols-outlined">sync</span>
-                </button> -->
-                <div class="top-bar__divider"></div>
-                <div class="shift-pill">
-                    <span class="material-symbols-outlined">play_circle</span>
-                    <span>Shift: Open</span>
-                </div>
-                <div class="profile">
-                    <div>
-                        <strong>{{ displayName }}</strong>
-                        <span>{{ displayRole }}</span>
-                    </div>
-                    <div class="profile__avatar">
-                        <span class="material-symbols-outlined">person</span>
-                    </div>
-                </div>
-                <Link class="icon-button" href="/logout" method="post" as="button" aria-label="Logout">
-                    <span class="material-symbols-outlined">logout</span>
-                </Link>
-            </div>
-        </header>
+            </template>
+        </AppNavbar>
 
         <main class="content">
             <section class="page-title">

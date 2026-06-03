@@ -12,6 +12,9 @@ class AuthenticationRoleSeeder extends Seeder
     {
         foreach ([
             ['name' => 'Superadmin', 'is_default' => false],
+            ['name' => 'Owner', 'is_default' => false],
+            ['name' => 'Manager', 'is_default' => false],
+            ['name' => 'Cashier', 'is_default' => false],
             ['name' => 'Users', 'is_default' => true],
         ] as $role) {
             AuthenticationRole::query()->firstOrCreate(
