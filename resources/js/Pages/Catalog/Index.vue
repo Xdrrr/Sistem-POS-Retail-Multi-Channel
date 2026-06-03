@@ -1,11 +1,15 @@
 <script setup>
 import { Link, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 
 const props = defineProps({
     categories: { type: Array, default: () => [] },
     groups: { type: Array, default: () => [] },
     products: { type: Array, default: () => [] },
+    serverTime: {
+        type: String,
+        default: () => '',
+    },
 });
 
 const page = usePage();
@@ -13,10 +17,38 @@ const authUser = computed(() => page.props.auth?.user);
 const displayName = computed(() => authUser.value?.detail?.full_name || authUser.value?.username || 'User');
 const displayRole = computed(() => authUser.value?.role || 'Staff');
 
+// Timer untuk update waktu setiap detik
+const currentTime = ref(props.serverTime);
+const displayTime = computed(() => currentTime.value);
+
+// Update time every second
+onMounted(() => {
+    const updateTime = () => {
+        const now = new Date();
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        
+        const dayName = days[now.getDay()];
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = months[now.getMonth()];
+        const year = now.getFullYear();
+        const hours = String(now.getHours() % 12 || 12).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+        
+        currentTime.value = `${dayName}, ${day} ${month} ${year} at ${hours}:${minutes} ${ampm}`;
+    };
+    
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    
+    onUnmounted(() => clearInterval(interval));
+});
+
 const navItems = [
     { label: 'Home', icon: 'home', href: '/' },
-    { label: 'New Sale', icon: 'add_shopping_cart', href: '#' },
-    { label: 'Orders', icon: 'receipt_long', href: '#' },
+    { label: 'New Sale', icon: 'add_shopping_cart', href: '/orders' },
+    { label: 'Orders', icon: 'receipt_long', href: '/orders' },
     { label: 'Shift', icon: 'calendar_today', href: '#' },
     { label: 'Reports', icon: 'bar_chart', href: '#' },
     { label: 'Products', icon: 'inventory_2', href: '/catalog', active: true },
@@ -195,6 +227,10 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
         <header class="top-bar">
             <div class="top-bar__left">
                 <div class="brand">RetailPOS</div>
+                <div class="current-time">
+                    <span class="material-symbols-outlined">schedule</span>
+                    <span>{{ displayTime }}</span>
+                </div>
                 <label class="search-box">
                     <span class="material-symbols-outlined">search</span>
                     <input type="text" placeholder="Search catalog..." />
@@ -205,9 +241,9 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                 <Link class="icon-button" href="/" aria-label="Home">
                     <span class="material-symbols-outlined">dashboard</span>
                 </Link>
-                <button class="icon-button" aria-label="Sync status" type="button">
+                <!-- <button class="icon-button" aria-label="Sync status" type="button">
                     <span class="material-symbols-outlined">sync</span>
-                </button>
+                </button> -->
                 <div class="top-bar__divider"></div>
                 <div class="shift-pill">
                     <span class="material-symbols-outlined">play_circle</span>
@@ -645,6 +681,18 @@ button {
     font-size: 32px;
     font-weight: 800;
     line-height: 40px;
+}
+
+.current-time {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #454652;
+    font-size: 14px;
+    font-weight: 600;
 }
 
 .search-box {

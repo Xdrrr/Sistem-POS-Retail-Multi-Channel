@@ -1,16 +1,65 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
+
+const props = defineProps({
+    dashboard: {
+        type: Object,
+        default: () => ({
+            sales_total: 0,
+            cash_total: 0,
+            digital_total: 0,
+            transactions_today: 0,
+            active_shift: '00:00:00',
+            pending_payments: 0,
+            completed_orders: 0,
+            hourly_sales: [],
+            recent_orders: [],
+        }),
+    },
+    serverTime: {
+        type: String,
+        default: () => '',
+    },
+});
 
 const page = usePage();
 const authUser = computed(() => page.props.auth?.user);
 const displayName = computed(() => authUser.value?.detail?.full_name || authUser.value?.username || 'User');
 const displayRole = computed(() => authUser.value?.role || 'Staff');
 
+// Timer untuk update waktu setiap detik
+const currentTime = ref(props.serverTime);
+const displayTime = computed(() => currentTime.value);
+
+// Update time every second
+onMounted(() => {
+    const updateTime = () => {
+        const now = new Date();
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        
+        const dayName = days[now.getDay()];
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = months[now.getMonth()];
+        const year = now.getFullYear();
+        const hours = String(now.getHours() % 12 || 12).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+        
+        currentTime.value = `${dayName}, ${day} ${month} ${year} at ${hours}:${minutes} ${ampm}`;
+    };
+    
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    
+    onUnmounted(() => clearInterval(interval));
+});
+
 const navItems = [
     { label: 'Home', icon: 'home', href: '/', active: true },
-    { label: 'New Sale', icon: 'add_shopping_cart', href: '#' },
-    { label: 'Orders', icon: 'receipt_long', href: '#' },
+    { label: 'New Sale', icon: 'add_shopping_cart', href: '/orders' },
+    { label: 'Orders', icon: 'receipt_long', href: '/orders' },
     { label: 'Shift', icon: 'calendar_today', href: '#' },
     { label: 'Reports', icon: 'bar_chart', href: '#' },
     { label: 'Products', icon: 'inventory_2', href: '/catalog' },
@@ -18,12 +67,18 @@ const navItems = [
     { label: 'Settings', icon: 'settings', href: '/settings/profile' },
 ];
 
-const kpis = [
-    { label: 'Transactions Today', value: '142', icon: 'receipt_long' },
-    { label: 'Active Shift', value: '04:15:30', icon: 'timer' },
+const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+}).format(Number(value ?? 0));
+
+const kpis = computed(() => [
+    { label: 'Transactions Today', value: props.dashboard.transactions_today, icon: 'receipt_long' },
+    { label: 'Active Shift', value: props.dashboard.active_shift, icon: 'timer' },
     { label: 'Printer Status', value: 'Epson TM-T82X', icon: 'print', badge: 'Online', positive: true },
-    { label: 'Pending Sync', value: '0 Items', icon: 'cloud_sync', badge: 'Up to date' },
-];
+    { label: 'Pending Payment', value: `${props.dashboard.pending_payments} Orders`, icon: 'payments', badge: `${props.dashboard.completed_orders} done` },
+]);
 
 const reportMenus = [
     { title: 'Laporan Penjualan', description: 'Ringkasan omzet, transaksi, dan metode bayar.', icon: 'monitoring' },
@@ -32,23 +87,8 @@ const reportMenus = [
     { title: 'Laporan Keuangan', description: 'Cash flow harian, pajak, diskon, dan settlement.', icon: 'payments' },
 ];
 
-const hourlySales = [
-    { time: '08:00', height: '30%', tone: 'softest' },
-    { time: '09:00', height: '45%', tone: 'soft' },
-    { time: '10:00', height: '70%', tone: 'medium' },
-    { time: '11:00', height: '90%', tone: 'strong' },
-    { time: '12:00', height: '100%', tone: 'strong' },
-    { time: '13:00', height: '85%', tone: 'bold' },
-    { time: '14:00', height: '50%', tone: 'medium' },
-    { time: '15:00', height: '12%', tone: 'muted' },
-];
-
-const orders = [
-    { code: '#ORD-0142', meta: '2 mins ago - Card', amount: 'Rp 350.000', status: 'Completed' },
-    { code: '#ORD-0141', meta: '8 mins ago - Cash', amount: 'Rp 125.000', status: 'Completed' },
-    { code: '#ORD-0140', meta: '15 mins ago - QRIS', amount: 'Rp 850.000', status: 'Completed' },
-    { code: '#ORD-0139', meta: '22 mins ago - Voided', amount: 'Rp 45.000', status: 'Void', voided: true },
-];
+const hourlySales = computed(() => props.dashboard.hourly_sales ?? []);
+const orders = computed(() => props.dashboard.recent_orders ?? []);
 </script>
 
 <template>
@@ -93,15 +133,16 @@ const orders = [
             </div>
 
             <div class="top-bar__right">
-                <button class="icon-button" aria-label="WiFi status" type="button">
+                <!-- <button class="icon-button" aria-label="WiFi status" type="button">
                     <span class="material-symbols-outlined">wifi</span>
-                </button>
-                <button class="icon-button" aria-label="Sync status" type="button">
+                </button> -->
+                <!-- <button class="icon-button" aria-label="Sync status" type="button">
                     <span class="material-symbols-outlined">sync</span>
-                </button>
-                <button class="icon-button" aria-label="Schedule" type="button">
+                </button> -->
+                <div class="current-time">
                     <span class="material-symbols-outlined">schedule</span>
-                </button>
+                    <span>{{ displayTime }}</span>
+                </div>
 
                 <div class="top-bar__divider"></div>
 
@@ -132,46 +173,45 @@ const orders = [
                     <h1>Overview</h1>
                     <p>Monitor performa hari ini dan akses laporan operasional POS.</p>
                 </div>
-                <button class="primary-action" type="button">
+                <Link class="primary-action" href="/orders">
                     <span class="material-symbols-outlined fill">add_shopping_cart</span>
                     Transaksi Baru
-                </button>
+                </Link>
             </section>
 
             <section class="hero-grid" aria-label="Sales summary">
                 <article class="sales-hero">
-                    <div class="sales-hero__orb"></div>
                     <div class="sales-hero__top">
                         <div>
                             <h2>
                                 <span class="material-symbols-outlined">account_balance_wallet</span>
                                 Today's Sales
                             </h2>
-                            <div class="sales-hero__amount">IDR 14.850.000</div>
+                            <div class="sales-hero__amount">{{ formatCurrency(dashboard.sales_total) }}</div>
                         </div>
                         <div class="trend-pill">
-                            <span class="material-symbols-outlined">trending_up</span>
-                            +12.5%
+                            <span class="material-symbols-outlined">receipt_long</span>
+                            {{ dashboard.transactions_today }} trx
                         </div>
                     </div>
                     <div class="sales-hero__split">
                         <div>
                             <span>Cash</span>
-                            <strong>IDR 4.200.000</strong>
+                            <strong>{{ formatCurrency(dashboard.cash_total) }}</strong>
                         </div>
                         <div>
-                            <span>Card/QRIS</span>
-                            <strong>IDR 10.650.000</strong>
+                            <span>Card/QRIS/Digital</span>
+                            <strong>{{ formatCurrency(dashboard.digital_total) }}</strong>
                         </div>
                     </div>
                 </article>
 
-                <article class="quick-sale-card">
+                <Link class="quick-sale-card" href="/orders">
                     <div>
                         <span class="material-symbols-outlined fill">point_of_sale</span>
                     </div>
                     <strong>Transaksi<br />Baru</strong>
-                </article>
+                </Link>
             </section>
 
             <section class="kpi-grid" aria-label="Operational indicators">
@@ -240,7 +280,7 @@ const orders = [
                 <article class="panel orders-panel">
                     <div class="panel__header">
                         <h3>Recent Orders</h3>
-                        <button class="link-button" type="button">View All</button>
+                        <Link class="link-button" href="/orders">View All</Link>
                     </div>
                     <div class="order-list">
                         <div
@@ -259,7 +299,7 @@ const orders = [
                                 </div>
                             </div>
                             <div class="order-row__right">
-                                <strong>{{ order.amount }}</strong>
+                                <strong>{{ formatCurrency(order.amount) }}</strong>
                                 <span>{{ order.status }}</span>
                             </div>
                         </div>
@@ -443,6 +483,18 @@ button {
     line-height: 40px;
 }
 
+.current-time {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #454652;
+    font-size: 14px;
+    font-weight: 600;
+}
+
 .search-box {
     position: relative;
     width: 264px;
@@ -596,6 +648,7 @@ button {
     color: #ffffff;
     padding: 0 16px;
     font-weight: 700;
+    text-decoration: none;
 }
 
 .hero-grid {
@@ -621,17 +674,6 @@ button {
     color: #ffffff;
     padding: 24px;
     box-shadow: 0 1px 3px rgb(15 23 42 / 12%);
-}
-
-.sales-hero__orb {
-    position: absolute;
-    top: -96px;
-    right: -48px;
-    width: 256px;
-    height: 256px;
-    border-radius: 999px;
-    background: rgb(255 255 255 / 6%);
-    filter: blur(28px);
 }
 
 .sales-hero__top {
@@ -707,6 +749,7 @@ button {
     background: #1b6d24;
     color: #ffffff;
     text-align: center;
+    text-decoration: none;
     box-shadow: 0 1px 3px rgb(15 23 42 / 12%);
 }
 
@@ -986,6 +1029,7 @@ button {
     font-size: 12px;
     font-weight: 800;
     letter-spacing: 0.04em;
+    text-decoration: none;
     text-transform: uppercase;
 }
 

@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\AuthenticationController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductGroupController;
 use App\Http\Controllers\TokenAuthController;
@@ -42,4 +44,16 @@ Route::middleware(EnsureApiToken::class)->group(function (): void {
     Route::get('/products/{guid}', [ProductController::class, 'show']);
     Route::put('/products/update', [ProductController::class, 'update']);
     Route::delete('/products/{guid}', [ProductController::class, 'destroy']);
+
+    // Orders
+    Route::post('/orders', [OrderController::class, 'index']);
+    Route::post('/orders/store', [OrderController::class, 'store']);
+    Route::get('/orders/{guid}', [OrderController::class, 'show']);
+    Route::put('/orders/update', [OrderController::class, 'update']);
+    Route::delete('/orders/{guid}', [OrderController::class, 'destroy']);
+
+    // Payments
+    Route::post('/payments', [PaymentController::class, 'index']);
+    Route::post('/payments/store', [PaymentController::class, 'store']);
+    Route::get('/payments/{guid}', [PaymentController::class, 'show']);
 });

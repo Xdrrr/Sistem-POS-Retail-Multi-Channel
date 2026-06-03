@@ -2,11 +2,12 @@
 
 use App\Http\Controllers\AuthPageController;
 use App\Http\Controllers\CatalogPageController;
+use App\Http\Controllers\HomePageController;
+use App\Http\Controllers\OrderPageController;
 use App\Http\Controllers\ProfilePageController;
 use App\Http\Middleware\EnsureWebAuthenticated;
 use App\Http\Middleware\RedirectIfWebAuthenticated;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::middleware(RedirectIfWebAuthenticated::class)->group(function (): void {
     Route::get('/login', [AuthPageController::class, 'login'])->name('login');
@@ -16,11 +17,7 @@ Route::middleware(RedirectIfWebAuthenticated::class)->group(function (): void {
 });
 
 Route::middleware(EnsureWebAuthenticated::class)->group(function (): void {
-    Route::get('/', function () {
-        return Inertia::render('Home/Index', [
-            'title' => 'Home',
-        ]);
-    })->name('dashboard');
+    Route::get('/', [HomePageController::class, 'index'])->name('dashboard');
 
     Route::post('/logout', [AuthPageController::class, 'logout'])->name('logout');
 
@@ -37,4 +34,10 @@ Route::middleware(EnsureWebAuthenticated::class)->group(function (): void {
     Route::post('/catalog/products', [CatalogPageController::class, 'storeProduct'])->name('catalog.products.store');
     Route::put('/catalog/products/{guid}', [CatalogPageController::class, 'updateProduct'])->name('catalog.products.update');
     Route::delete('/catalog/products/{guid}', [CatalogPageController::class, 'destroyProduct'])->name('catalog.products.destroy');
+
+    Route::get('/orders', [OrderPageController::class, 'index'])->name('orders.index');
+    Route::post('/orders/create', [OrderPageController::class, 'store'])->name('orders.store');
+    Route::post('/orders/{guid}/payments', [OrderPageController::class, 'storePayment'])->name('orders.payments.store');
+    Route::put('/orders/{guid}/complete', [OrderPageController::class, 'complete'])->name('orders.complete');
+    Route::put('/orders/{guid}/cancel', [OrderPageController::class, 'cancel'])->name('orders.cancel');
 });

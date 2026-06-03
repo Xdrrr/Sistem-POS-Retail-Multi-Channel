@@ -9,6 +9,7 @@ return new class extends Migration
 {
     public function up(): void
     {
+        DB::statement('DROP SCHEMA IF EXISTS product CASCADE');
         DB::statement('CREATE SCHEMA IF NOT EXISTS product');
 
         Schema::create('product.categories', function (Blueprint $table): void {

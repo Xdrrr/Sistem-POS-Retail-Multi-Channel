@@ -37,8 +37,8 @@ class AuthenticationUserSeeder extends Seeder
                 ['user_id' => $user->id],
                 [
                     'phone_number' => '02212',
-                    'email' => 'faikar@wit.id',
-                    'full_name' => 'Faikar',
+                    'email' => 'xander@wit.id',
+                    'full_name' => 'Xander',
                     'gender' => 'Laki-laki',
                     'address' => 'WIT',
                     'additional_address' => null,

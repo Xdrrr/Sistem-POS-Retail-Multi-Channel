@@ -18,6 +18,7 @@ class CatalogPageController extends Controller
     {
         return Inertia::render('Catalog/Index', [
             'title' => 'Product Catalog',
+            'server_time' => now()->format('l, d F Y at h:i A'),
             'categories' => Category::query()
                 ->orderBy('name')
                 ->get()
