@@ -26,7 +26,7 @@ class ProductController extends Controller
         ]);
 
         $query = Product::query()->with(['category', 'group']);
-        $this->applyFilter($request, $query, ['guid', 'category_id', 'group_id']);
+        $this->applyFilter($request, $query, ['guid', 'category_guid', 'group_guid']);
 
         $products = $query->get()
             ->map(fn (Product $product): array => $this->productData($product));
@@ -43,13 +43,11 @@ class ProductController extends Controller
         }
 
         $validated = $validator->validated();
-        $category = Category::query()->where('guid', $validated['category_guid'])->first();
-        $group = ProductGroup::query()->where('guid', $validated['group_guid'])->first();
 
         $product = Product::query()->create([
             'guid' => (string) Str::uuid(),
-            'category_id' => $category->id,
-            'group_id' => $group->id,
+            'category_guid' => $validated['category_guid'],
+            'group_guid' => $validated['group_guid'],
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'price' => $validated['price'] ?? 0,
@@ -96,12 +94,10 @@ class ProductController extends Controller
         }
 
         $validated = $validator->validated();
-        $category = Category::query()->where('guid', $validated['category_guid'])->first();
-        $group = ProductGroup::query()->where('guid', $validated['group_guid'])->first();
 
         $product->update([
-            'category_id' => $category->id,
-            'group_id' => $group->id,
+            'category_guid' => $validated['category_guid'],
+            'group_guid' => $validated['group_guid'],
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'price' => $validated['price'] ?? $product->price,

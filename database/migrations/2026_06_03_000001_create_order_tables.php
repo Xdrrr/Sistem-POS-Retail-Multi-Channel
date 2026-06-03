@@ -34,8 +34,8 @@ return new class extends Migration
         Schema::create('orders.order_items', function (Blueprint $table): void {
             $table->id();
             $table->uuid('guid')->unique();
-            $table->foreignId('order_id');
-            $table->foreignId('product_id');
+            $table->uuid('order_guid');
+            $table->uuid('product_guid');
             $table->string('product_name', 150);
             $table->decimal('quantity', 12, 2);
             $table->decimal('unit_price', 15, 2);
@@ -45,22 +45,22 @@ return new class extends Migration
             $table->timestamps();
 
             $table
-                ->foreign('order_id')
-                ->references('id')
+                ->foreign('order_guid')
+                ->references('guid')
                 ->on('orders.orders')
                 ->cascadeOnDelete();
             $table
-                ->foreign('product_id')
-                ->references('id')
+                ->foreign('product_guid')
+                ->references('guid')
                 ->on('product.products')
                 ->restrictOnDelete();
-            $table->index(['order_id', 'product_id']);
+            $table->index(['order_guid', 'product_guid']);
         });
 
         Schema::create('orders.payments', function (Blueprint $table): void {
             $table->id();
             $table->uuid('guid')->unique();
-            $table->foreignId('order_id');
+            $table->uuid('order_guid');
             $table->string('payment_number', 30)->unique();
             $table->enum('method', ['cash', 'debit_card', 'credit_card', 'qris', 'transfer', 'e_wallet']);
             $table->enum('status', ['pending', 'paid', 'failed', 'refunded'])->default('paid');
@@ -71,11 +71,11 @@ return new class extends Migration
             $table->timestamps();
 
             $table
-                ->foreign('order_id')
-                ->references('id')
+                ->foreign('order_guid')
+                ->references('guid')
                 ->on('orders.orders')
                 ->cascadeOnDelete();
-            $table->index(['order_id', 'method', 'status']);
+            $table->index(['order_guid', 'method', 'status']);
         });
     }
 

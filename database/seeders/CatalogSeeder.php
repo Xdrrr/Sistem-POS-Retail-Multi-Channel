@@ -46,8 +46,8 @@ class CatalogSeeder extends Seeder
                 ['name' => $item['name']],
                 [
                     'guid' => Product::query()->where('name', $item['name'])->value('guid') ?? (string) Str::uuid(),
-                    'category_id' => $categories[$item['category']]->id,
-                    'group_id' => $groups[$item['group']]->id,
+                    'category_guid' => $categories[$item['category']]->guid,
+                    'group_guid' => $groups[$item['group']]->guid,
                     'price' => 0,
                     'is_active' => true,
                 ],

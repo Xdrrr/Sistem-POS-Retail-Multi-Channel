@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'guid',
-    'order_id',
+    'order_guid',
     'payment_number',
     'method',
     'status',
@@ -23,7 +23,7 @@ class Payment extends Model
 
     public function order(): BelongsTo
     {
-        return $this->belongsTo(Order::class);
+        return $this->belongsTo(Order::class, 'order_guid', 'guid');
     }
 
     protected function casts(): array

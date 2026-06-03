@@ -18,7 +18,7 @@ class AuthenticationUserSeeder extends Seeder
 
         DB::transaction(function () use ($role, $salt): void {
             $user = AuthenticationUser::query()->firstOrCreate(
-                ['username' => 'faikar@wit.id'],
+                ['username' => 'xander@wit.id'],
                 [
                     'guid' => (string) Str::uuid(),
                     'role_id' => $role->id,

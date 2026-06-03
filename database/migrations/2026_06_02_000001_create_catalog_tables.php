@@ -33,8 +33,8 @@ return new class extends Migration
         Schema::create('product.products', function (Blueprint $table): void {
             $table->id();
             $table->uuid('guid')->unique();
-            $table->foreignId('category_id');
-            $table->foreignId('group_id');
+            $table->uuid('category_guid');
+            $table->uuid('group_guid');
             $table->string('name', 150)->unique();
             $table->text('description')->nullable();
             $table->decimal('price', 15, 2)->default(0);
@@ -42,16 +42,16 @@ return new class extends Migration
             $table->timestamps();
 
             $table
-                ->foreign('category_id')
-                ->references('id')
+                ->foreign('category_guid')
+                ->references('guid')
                 ->on('product.categories')
                 ->restrictOnDelete();
             $table
-                ->foreign('group_id')
-                ->references('id')
+                ->foreign('group_guid')
+                ->references('guid')
                 ->on('product.groups')
                 ->restrictOnDelete();
-            $table->index(['category_id', 'group_id']);
+            $table->index(['category_guid', 'group_guid']);
         });
     }
 

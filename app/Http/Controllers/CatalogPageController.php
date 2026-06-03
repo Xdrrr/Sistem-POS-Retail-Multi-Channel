@@ -132,13 +132,11 @@ class CatalogPageController extends Controller
     public function storeProduct(Request $request): RedirectResponse
     {
         $validated = $request->validate($this->productRules());
-        $category = Category::query()->where('guid', $validated['category_guid'])->firstOrFail();
-        $group = ProductGroup::query()->where('guid', $validated['group_guid'])->firstOrFail();
 
         Product::query()->create([
             'guid' => (string) Str::uuid(),
-            'category_id' => $category->id,
-            'group_id' => $group->id,
+            'category_guid' => $validated['category_guid'],
+            'group_guid' => $validated['group_guid'],
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'price' => $validated['price'] ?? 0,
@@ -152,12 +150,10 @@ class CatalogPageController extends Controller
     {
         $product = Product::query()->where('guid', $guid)->firstOrFail();
         $validated = $request->validate($this->productRules($product));
-        $category = Category::query()->where('guid', $validated['category_guid'])->firstOrFail();
-        $group = ProductGroup::query()->where('guid', $validated['group_guid'])->firstOrFail();
 
         $product->update([
-            'category_id' => $category->id,
-            'group_id' => $group->id,
+            'category_guid' => $validated['category_guid'],
+            'group_guid' => $validated['group_guid'],
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'price' => $validated['price'] ?? 0,
@@ -214,8 +210,8 @@ class CatalogPageController extends Controller
             'description' => $product->description,
             'price' => $product->price,
             'is_active' => $product->is_active,
-            'category_guid' => $product->category?->guid,
-            'group_guid' => $product->group?->guid,
+            'category_guid' => $product->category_guid,
+            'group_guid' => $product->group_guid,
             'category_name' => $product->category?->name,
             'group_name' => $product->group?->name,
         ];

@@ -45,7 +45,7 @@ class OrderSeeder extends Seeder
         $order->items()->createMany([
             [
                 'guid' => (string) Str::uuid(),
-                'product_id' => $products['Nasi Goreng Special']->id,
+                'product_guid' => $products['Nasi Goreng Special']->guid,
                 'product_name' => $products['Nasi Goreng Special']->name,
                 'quantity' => 2,
                 'unit_price' => 20000,
@@ -55,7 +55,7 @@ class OrderSeeder extends Seeder
             ],
             [
                 'guid' => (string) Str::uuid(),
-                'product_id' => $products['Kopi Americano']->id,
+                'product_guid' => $products['Kopi Americano']->guid,
                 'product_name' => $products['Kopi Americano']->name,
                 'quantity' => 1,
                 'unit_price' => 15000,

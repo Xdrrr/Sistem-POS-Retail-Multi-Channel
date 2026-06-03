@@ -53,7 +53,7 @@ class OrderPageController extends Controller
 
                 return [
                     'guid' => (string) Str::uuid(),
-                    'product_id' => $product->id,
+                    'product_guid' => $product->guid,
                     'product_name' => $product->name,
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice,
@@ -85,6 +85,7 @@ class OrderPageController extends Controller
                 'ordered_at' => now(),
             ]);
 
+            // items() relation uses order_guid, Laravel will inject it automatically
             $items->each(fn (array $item) => $order->items()->create($item));
 
             if (($validated['payment_amount'] ?? 0) > 0) {

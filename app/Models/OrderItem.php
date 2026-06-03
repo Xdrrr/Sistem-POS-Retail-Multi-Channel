@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'guid',
-    'order_id',
-    'product_id',
+    'order_guid',
+    'product_guid',
     'product_name',
     'quantity',
     'unit_price',
@@ -23,12 +23,12 @@ class OrderItem extends Model
 
     public function order(): BelongsTo
     {
-        return $this->belongsTo(Order::class);
+        return $this->belongsTo(Order::class, 'order_guid', 'guid');
     }
 
     public function product(): BelongsTo
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(Product::class, 'product_guid', 'guid');
     }
 
     protected function casts(): array

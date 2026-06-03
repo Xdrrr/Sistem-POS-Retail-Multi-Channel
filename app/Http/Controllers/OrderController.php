@@ -228,7 +228,7 @@ class OrderController extends Controller
 
             return [
                 'guid' => (string) Str::uuid(),
-                'product_id' => $product->id,
+                'product_guid' => $product->guid,
                 'product_name' => $product->name,
                 'quantity' => $quantity,
                 'unit_price' => $unitPrice,

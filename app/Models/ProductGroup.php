@@ -13,7 +13,7 @@ class ProductGroup extends Model
 
     public function products(): HasMany
     {
-        return $this->hasMany(Product::class, 'group_id');
+        return $this->hasMany(Product::class, 'group_guid', 'guid');
     }
 
     protected function casts(): array
