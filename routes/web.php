@@ -1,10 +1,40 @@
 <?php
 
+use App\Http\Controllers\AuthPageController;
+use App\Http\Controllers\CatalogPageController;
+use App\Http\Controllers\ProfilePageController;
+use App\Http\Middleware\EnsureWebAuthenticated;
+use App\Http\Middleware\RedirectIfWebAuthenticated;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('Home/Index', [
-        'title' => 'Home',
-    ]);
+Route::middleware(RedirectIfWebAuthenticated::class)->group(function (): void {
+    Route::get('/login', [AuthPageController::class, 'login'])->name('login');
+    Route::post('/login', [AuthPageController::class, 'authenticate'])->name('login.store');
+    Route::get('/register', [AuthPageController::class, 'register'])->name('register');
+    Route::post('/register', [AuthPageController::class, 'store'])->name('register.store');
+});
+
+Route::middleware(EnsureWebAuthenticated::class)->group(function (): void {
+    Route::get('/', function () {
+        return Inertia::render('Home/Index', [
+            'title' => 'Home',
+        ]);
+    })->name('dashboard');
+
+    Route::post('/logout', [AuthPageController::class, 'logout'])->name('logout');
+
+    Route::get('/settings/profile', [ProfilePageController::class, 'edit'])->name('settings.profile');
+    Route::put('/settings/profile', [ProfilePageController::class, 'update'])->name('settings.profile.update');
+
+    Route::get('/catalog', [CatalogPageController::class, 'index'])->name('catalog.index');
+    Route::post('/catalog/categories', [CatalogPageController::class, 'storeCategory'])->name('catalog.categories.store');
+    Route::put('/catalog/categories/{guid}', [CatalogPageController::class, 'updateCategory'])->name('catalog.categories.update');
+    Route::delete('/catalog/categories/{guid}', [CatalogPageController::class, 'destroyCategory'])->name('catalog.categories.destroy');
+    Route::post('/catalog/groups', [CatalogPageController::class, 'storeGroup'])->name('catalog.groups.store');
+    Route::put('/catalog/groups/{guid}', [CatalogPageController::class, 'updateGroup'])->name('catalog.groups.update');
+    Route::delete('/catalog/groups/{guid}', [CatalogPageController::class, 'destroyGroup'])->name('catalog.groups.destroy');
+    Route::post('/catalog/products', [CatalogPageController::class, 'storeProduct'])->name('catalog.products.store');
+    Route::put('/catalog/products/{guid}', [CatalogPageController::class, 'updateProduct'])->name('catalog.products.update');
+    Route::delete('/catalog/products/{guid}', [CatalogPageController::class, 'destroyProduct'])->name('catalog.products.destroy');
 });

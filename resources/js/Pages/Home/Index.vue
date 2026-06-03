@@ -1,13 +1,21 @@
 <script setup>
+import { Link, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
+
+const page = usePage();
+const authUser = computed(() => page.props.auth?.user);
+const displayName = computed(() => authUser.value?.detail?.full_name || authUser.value?.username || 'User');
+const displayRole = computed(() => authUser.value?.role || 'Staff');
+
 const navItems = [
-    { label: 'Home', icon: 'home', active: true },
-    { label: 'New Sale', icon: 'add_shopping_cart' },
-    { label: 'Orders', icon: 'receipt_long' },
-    { label: 'Shift', icon: 'calendar_today' },
-    { label: 'Reports', icon: 'bar_chart' },
-    { label: 'Products', icon: 'inventory_2' },
-    { label: 'Sync Center', icon: 'sync' },
-    { label: 'Settings', icon: 'settings' },
+    { label: 'Home', icon: 'home', href: '/', active: true },
+    { label: 'New Sale', icon: 'add_shopping_cart', href: '#' },
+    { label: 'Orders', icon: 'receipt_long', href: '#' },
+    { label: 'Shift', icon: 'calendar_today', href: '#' },
+    { label: 'Reports', icon: 'bar_chart', href: '#' },
+    { label: 'Products', icon: 'inventory_2', href: '/catalog' },
+    { label: 'Sync Center', icon: 'sync', href: '#' },
+    { label: 'Settings', icon: 'settings', href: '/settings/profile' },
 ];
 
 const kpis = [
@@ -56,16 +64,16 @@ const orders = [
                 </div>
 
                 <div class="nav-list">
-                    <button
+                    <Link
                         v-for="item in navItems"
                         :key="item.label"
                         class="nav-item"
                         :class="{ 'nav-item--active': item.active }"
-                        type="button"
+                        :href="item.href"
                     >
                         <span class="material-symbols-outlined" :class="{ fill: item.active }">{{ item.icon }}</span>
                         <span>{{ item.label }}</span>
-                    </button>
+                    </Link>
                 </div>
             </div>
 
@@ -104,17 +112,17 @@ const orders = [
 
                 <div class="profile">
                     <div>
-                        <strong>John Doe</strong>
-                        <span>Cashier</span>
+                        <strong>{{ displayName }}</strong>
+                        <span>{{ displayRole }}</span>
                     </div>
                     <div class="profile__avatar">
                         <span class="material-symbols-outlined">person</span>
                     </div>
                 </div>
 
-                <button class="icon-button" aria-label="Logout" type="button">
+                <Link class="icon-button" aria-label="Logout" href="/logout" method="post" as="button">
                     <span class="material-symbols-outlined">logout</span>
-                </button>
+                </Link>
             </div>
         </header>
 
