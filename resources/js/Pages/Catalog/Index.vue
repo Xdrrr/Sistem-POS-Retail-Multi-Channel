@@ -1,6 +1,6 @@
 <script setup>
 import { Link, useForm } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import AppNavbar from '../../Components/AppNavbar.vue';
 import AppSidebar from '../../Components/AppSidebar.vue';
 
@@ -13,6 +13,62 @@ const props = defineProps({
         default: () => '',
     },
 });
+
+const filters = reactive({
+    search: '',
+    category_guids: [],
+    group_guids: [],
+    is_active: '',
+});
+
+const filteredProducts = computed(() => {
+    let items = props.products;
+    if (filters.search) {
+        const q = filters.search.toLowerCase();
+        items = items.filter((p) => p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q));
+    }
+    if (filters.category_guids.length > 0) {
+        items = items.filter((p) => filters.category_guids.includes(p.category_guid));
+    }
+    if (filters.group_guids.length > 0) {
+        items = items.filter((p) => filters.group_guids.includes(p.group_guid));
+    }
+    if (filters.is_active !== '') {
+        items = items.filter((p) => String(p.is_active) === filters.is_active);
+    }
+    return items;
+});
+
+const filteredCategories = computed(() => {
+    let items = props.categories;
+    if (filters.search) {
+        const q = filters.search.toLowerCase();
+        items = items.filter((c) => c.name.toLowerCase().includes(q));
+    }
+    if (filters.is_active !== '') {
+        items = items.filter((c) => String(c.is_active) === filters.is_active);
+    }
+    return items;
+});
+
+const filteredGroups = computed(() => {
+    let items = props.groups;
+    if (filters.search) {
+        const q = filters.search.toLowerCase();
+        items = items.filter((g) => g.name.toLowerCase().includes(q));
+    }
+    if (filters.is_active !== '') {
+        items = items.filter((g) => String(g.is_active) === filters.is_active);
+    }
+    return items;
+});
+
+const resetFilters = () => {
+    filters.search = '';
+    filters.category_guids = [];
+    filters.group_guids = [];
+    filters.is_active = '';
+};
 
 const tabs = [
     { key: 'products', label: 'Products', singular: 'Product', icon: 'inventory_2' },
@@ -184,7 +240,7 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                 <div class="brand">RetailPOS</div>
                 <label class="search-box">
                     <span class="material-symbols-outlined">search</span>
-                    <input type="text" placeholder="Search catalog..." />
+                    <input v-model="filters.search" type="text" placeholder="Search catalog..." />
                 </label>
             </template>
 
@@ -231,150 +287,195 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                 </article>
             </section>
 
-            <section class="catalog-panel">
-                <div class="catalog-panel__header">
-                    <div class="tabs" role="tablist">
-                        <button
-                            v-for="tab in tabs"
-                            :key="tab.key"
-                            class="tab-button"
-                            :class="{ 'tab-button--active': activeTab === tab.key }"
-                            type="button"
-                            @click="activeTab = tab.key"
-                        >
-                            <span class="material-symbols-outlined">{{ tab.icon }}</span>
-                            {{ tab.label }}
+            <section class="catalog-layout">
+                <aside class="filter-panel">
+                    <div class="filter-panel__head">
+                        <strong>Filter</strong>
+                    </div>
+
+                    <label>
+                        <span>Search</span>
+                        <input v-model="filters.search" type="text" placeholder="Cari nama..." />
+                    </label>
+
+                    <label v-if="activeTab === 'products'">
+                        <span>Category</span>
+                        <select v-model="filters.category_guids" multiple>
+                            <option v-for="category in categories" :key="category.guid" :value="category.guid">{{ category.name }}</option>
+                        </select>
+                    </label>
+
+                    <label v-if="activeTab === 'products'">
+                        <span>Group</span>
+                        <select v-model="filters.group_guids" multiple>
+                            <option v-for="group in groups" :key="group.guid" :value="group.guid">{{ group.name }}</option>
+                        </select>
+                    </label>
+
+                    <label>
+                        <span>Status</span>
+                        <select v-model="filters.is_active">
+                            <option value="">All</option>
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </label>
+
+                    <button class="secondary-action" type="button" @click="resetFilters" style="width: 100%; margin-top: 8px;">
+                        <span class="material-symbols-outlined">restart_alt</span>
+                        Reset
+                    </button>
+                </aside>
+
+                <section class="catalog-panel">
+                    <div class="catalog-panel__header">
+                        <div class="tabs" role="tablist">
+                            <button
+                                v-for="tab in tabs"
+                                :key="tab.key"
+                                class="tab-button"
+                                :class="{ 'tab-button--active': activeTab === tab.key }"
+                                type="button"
+                                @click="activeTab = tab.key"
+                            >
+                                <span class="material-symbols-outlined">{{ tab.icon }}</span>
+                                {{ tab.label }}
+                            </button>
+                        </div>
+                        <button class="secondary-action" type="button" @click="openCreate()">
+                            <span class="material-symbols-outlined">add</span>
+                            Baru
                         </button>
                     </div>
-                    <button class="secondary-action" type="button" @click="openCreate()">
-                        <span class="material-symbols-outlined">add</span>
-                        Baru
-                    </button>
-                </div>
 
-                <div v-if="activeTab === 'products'" class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Image</th>
-                                <th>Category</th>
-                                <th>Group</th>
-                                <th>Price</th>
-                                <th>Status</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="product in products" :key="product.guid">
-                                <td>
-                                    <strong>{{ product.name }}</strong>
-                                    <span>{{ product.description || 'No description' }}</span>
-                                </td>
-                                <td>
-                                    <img v-if="product.image_url" class="catalog-thumb" :src="product.image_url" :alt="product.name" />
-                                    <span v-else class="image-placeholder">
-                                        <span class="material-symbols-outlined">image</span>
-                                    </span>
-                                </td>
-                                <td>{{ product.category_name || '-' }}</td>
-                                <td>{{ product.group_name || '-' }}</td>
-                                <td>{{ formatCurrency(product.price) }}</td>
-                                <td>
-                                    <span class="status-badge" :class="{ 'status-badge--positive': product.is_active }">
-                                        {{ product.is_active ? 'Active' : 'Inactive' }}
-                                    </span>
-                                </td>
-                                <td class="row-actions">
-                                    <button class="icon-button" type="button" aria-label="Edit product" @click="openEdit(product)">
-                                        <span class="material-symbols-outlined">edit</span>
-                                    </button>
-                                    <button class="icon-button icon-button--danger" type="button" aria-label="Delete product" @click="destroyItem(product)">
-                                        <span class="material-symbols-outlined">delete</span>
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                    <div class="filter-info">
+                        <span>{{ filteredProducts.length }} product(s) found</span>
+                    </div>
 
-                <div v-if="activeTab === 'categories'" class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Category</th>
-                                <th>Image</th>
-                                <th>Description</th>
-                                <th>Status</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="category in categories" :key="category.guid">
-                                <td><strong>{{ category.name }}</strong></td>
-                                <td>
-                                    <img v-if="category.image_url" class="catalog-thumb" :src="category.image_url" :alt="category.name" />
-                                    <span v-else class="image-placeholder">
-                                        <span class="material-symbols-outlined">image</span>
-                                    </span>
-                                </td>
-                                <td>{{ category.description || '-' }}</td>
-                                <td>
-                                    <span class="status-badge" :class="{ 'status-badge--positive': category.is_active }">
-                                        {{ category.is_active ? 'Active' : 'Inactive' }}
-                                    </span>
-                                </td>
-                                <td class="row-actions">
-                                    <button class="icon-button" type="button" aria-label="Edit category" @click="openEdit(category)">
-                                        <span class="material-symbols-outlined">edit</span>
-                                    </button>
-                                    <button class="icon-button icon-button--danger" type="button" aria-label="Delete category" @click="destroyItem(category)">
-                                        <span class="material-symbols-outlined">delete</span>
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                    <div v-if="activeTab === 'products'" class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Image</th>
+                                    <th>Category</th>
+                                    <th>Group</th>
+                                    <th>Price</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="product in filteredProducts" :key="product.guid">
+                                    <td>
+                                        <strong>{{ product.name }}</strong>
+                                        <span>{{ product.description || 'No description' }}</span>
+                                    </td>
+                                    <td>
+                                        <img v-if="product.image_url" class="catalog-thumb" :src="product.image_url" :alt="product.name" />
+                                        <span v-else class="image-placeholder">
+                                            <span class="material-symbols-outlined">image</span>
+                                        </span>
+                                    </td>
+                                    <td>{{ product.category_name || '-' }}</td>
+                                    <td>{{ product.group_name || '-' }}</td>
+                                    <td>{{ formatCurrency(product.price) }}</td>
+                                    <td>
+                                        <span class="status-badge" :class="{ 'status-badge--positive': product.is_active }">
+                                            {{ product.is_active ? 'Active' : 'Inactive' }}
+                                        </span>
+                                    </td>
+                                    <td class="row-actions">
+                                        <button class="icon-button" type="button" aria-label="Edit product" @click="openEdit(product)">
+                                            <span class="material-symbols-outlined">edit</span>
+                                        </button>
+                                        <button class="icon-button icon-button--danger" type="button" aria-label="Delete product" @click="destroyItem(product)">
+                                            <span class="material-symbols-outlined">delete</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
 
-                <div v-if="activeTab === 'groups'" class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Group</th>
-                                <th>Image</th>
-                                <th>Description</th>
-                                <th>Status</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="group in groups" :key="group.guid">
-                                <td><strong>{{ group.name }}</strong></td>
-                                <td>
-                                    <img v-if="group.image_url" class="catalog-thumb" :src="group.image_url" :alt="group.name" />
-                                    <span v-else class="image-placeholder">
-                                        <span class="material-symbols-outlined">image</span>
-                                    </span>
-                                </td>
-                                <td>{{ group.description || '-' }}</td>
-                                <td>
-                                    <span class="status-badge" :class="{ 'status-badge--positive': group.is_active }">
-                                        {{ group.is_active ? 'Active' : 'Inactive' }}
-                                    </span>
-                                </td>
-                                <td class="row-actions">
-                                    <button class="icon-button" type="button" aria-label="Edit group" @click="openEdit(group)">
-                                        <span class="material-symbols-outlined">edit</span>
-                                    </button>
-                                    <button class="icon-button icon-button--danger" type="button" aria-label="Delete group" @click="destroyItem(group)">
-                                        <span class="material-symbols-outlined">delete</span>
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                    <div v-if="activeTab === 'categories'" class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Image</th>
+                                    <th>Description</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="category in filteredCategories" :key="category.guid">
+                                    <td><strong>{{ category.name }}</strong></td>
+                                    <td>
+                                        <img v-if="category.image_url" class="catalog-thumb" :src="category.image_url" :alt="category.name" />
+                                        <span v-else class="image-placeholder">
+                                            <span class="material-symbols-outlined">image</span>
+                                        </span>
+                                    </td>
+                                    <td>{{ category.description || '-' }}</td>
+                                    <td>
+                                        <span class="status-badge" :class="{ 'status-badge--positive': category.is_active }">
+                                            {{ category.is_active ? 'Active' : 'Inactive' }}
+                                        </span>
+                                    </td>
+                                    <td class="row-actions">
+                                        <button class="icon-button" type="button" aria-label="Edit category" @click="openEdit(category)">
+                                            <span class="material-symbols-outlined">edit</span>
+                                        </button>
+                                        <button class="icon-button icon-button--danger" type="button" aria-label="Delete category" @click="destroyItem(category)">
+                                            <span class="material-symbols-outlined">delete</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div v-if="activeTab === 'groups'" class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Group</th>
+                                    <th>Image</th>
+                                    <th>Description</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="group in filteredGroups" :key="group.guid">
+                                    <td><strong>{{ group.name }}</strong></td>
+                                    <td>
+                                        <img v-if="group.image_url" class="catalog-thumb" :src="group.image_url" :alt="group.name" />
+                                        <span v-else class="image-placeholder">
+                                            <span class="material-symbols-outlined">image</span>
+                                        </span>
+                                    </td>
+                                    <td>{{ group.description || '-' }}</td>
+                                    <td>
+                                        <span class="status-badge" :class="{ 'status-badge--positive': group.is_active }">
+                                            {{ group.is_active ? 'Active' : 'Inactive' }}
+                                        </span>
+                                    </td>
+                                    <td class="row-actions">
+                                        <button class="icon-button" type="button" aria-label="Edit group" @click="openEdit(group)">
+                                            <span class="material-symbols-outlined">edit</span>
+                                        </button>
+                                        <button class="icon-button icon-button--danger" type="button" aria-label="Delete group" @click="destroyItem(group)">
+                                            <span class="material-symbols-outlined">delete</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
             </section>
         </main>
 
@@ -1220,6 +1321,73 @@ small {
     }
 
     .form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.catalog-layout {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+
+.filter-panel {
+    display: grid;
+    gap: 12px;
+    border: 1px solid #c6c5d4;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 14px;
+}
+
+.filter-panel__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.filter-panel__head strong {
+    font-size: 14px;
+}
+
+.filter-panel label > span {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 800;
+    color: #454652;
+}
+
+.filter-panel input,
+.filter-panel select {
+    width: 100%;
+    min-height: 38px;
+    border: 1px solid #c6c5d4;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font: inherit;
+    background: #fff;
+}
+
+.filter-panel select[multiple] {
+    min-height: 100px;
+}
+
+.filter-panel .secondary-action {
+    width: 100%;
+    justify-content: center;
+}
+
+.filter-info {
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #5c5f66;
+    border-bottom: 1px solid #edeeef;
+}
+
+@media (max-width: 900px) {
+    .catalog-layout {
         grid-template-columns: 1fr;
     }
 }
