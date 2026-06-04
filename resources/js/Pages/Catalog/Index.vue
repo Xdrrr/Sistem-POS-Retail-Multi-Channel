@@ -1,6 +1,6 @@
 <script setup>
 import { Link, useForm } from '@inertiajs/vue3';
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import AppNavbar from '../../Components/AppNavbar.vue';
 import AppSidebar from '../../Components/AppSidebar.vue';
 
@@ -19,7 +19,14 @@ const filters = reactive({
     category_guids: [],
     group_guids: [],
     is_active: '',
+    limit: 20,
+    sort: 'ASC',
 });
+
+const sortByName = (items) => {
+    const sorted = [...items].sort((a, b) => a.name.localeCompare(b.name));
+    return filters.sort === 'DESC' ? sorted.reverse() : sorted;
+};
 
 const filteredProducts = computed(() => {
     let items = props.products;
@@ -36,7 +43,7 @@ const filteredProducts = computed(() => {
     if (filters.is_active !== '') {
         items = items.filter((p) => String(p.is_active) === filters.is_active);
     }
-    return items;
+    return sortByName(items);
 });
 
 const filteredCategories = computed(() => {
@@ -48,7 +55,7 @@ const filteredCategories = computed(() => {
     if (filters.is_active !== '') {
         items = items.filter((c) => String(c.is_active) === filters.is_active);
     }
-    return items;
+    return sortByName(items);
 });
 
 const filteredGroups = computed(() => {
@@ -60,7 +67,7 @@ const filteredGroups = computed(() => {
     if (filters.is_active !== '') {
         items = items.filter((g) => String(g.is_active) === filters.is_active);
     }
-    return items;
+    return sortByName(items);
 });
 
 const resetFilters = () => {
@@ -68,6 +75,9 @@ const resetFilters = () => {
     filters.category_guids = [];
     filters.group_guids = [];
     filters.is_active = '';
+    filters.limit = 20;
+    filters.sort = 'ASC';
+    currentPage.value = 1;
 };
 
 const tabs = [
@@ -80,6 +90,8 @@ const activeTab = ref('products');
 const editing = ref(null);
 const modalOpen = ref(false);
 const currentImageUrl = ref(null);
+const currentPage = ref(1);
+const loading = ref(false);
 
 const productForm = useForm({
     category_guid: '',
@@ -114,6 +126,50 @@ const activeForm = computed(() => {
 
 const panelTitle = computed(() => tabs.find((tab) => tab.key === activeTab.value)?.label ?? 'Products');
 const actionTitle = computed(() => tabs.find((tab) => tab.key === activeTab.value)?.singular ?? 'Product');
+
+const pageSize = computed(() => Math.max(1, Math.min(100, Number(filters.limit || 20))));
+const activeTotal = computed(() => {
+    if (activeTab.value === 'categories') return filteredCategories.value.length;
+    if (activeTab.value === 'groups') return filteredGroups.value.length;
+
+    return filteredProducts.value.length;
+});
+const meta = computed(() => {
+    const lastPage = Math.max(1, Math.ceil(activeTotal.value / pageSize.value));
+
+    return {
+        current_page: Math.min(currentPage.value, lastPage),
+        last_page: lastPage,
+        per_page: pageSize.value,
+        total: activeTotal.value,
+    };
+});
+const paginate = (items) => {
+    const start = (meta.value.current_page - 1) * pageSize.value;
+
+    return items.slice(start, start + pageSize.value);
+};
+const paginatedProducts = computed(() => paginate(filteredProducts.value));
+const paginatedCategories = computed(() => paginate(filteredCategories.value));
+const paginatedGroups = computed(() => paginate(filteredGroups.value));
+const changePage = (page) => {
+    currentPage.value = Math.max(1, Math.min(meta.value.last_page, page));
+};
+
+watch(
+    () => [
+        activeTab.value,
+        filters.search,
+        filters.category_guids.join('|'),
+        filters.group_guids.join('|'),
+        filters.is_active,
+        filters.limit,
+        filters.sort,
+    ],
+    () => {
+        currentPage.value = 1;
+    },
+);
 
 const resetForms = () => {
     productForm.reset();
@@ -321,6 +377,18 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                         </select>
                     </label>
 
+                    <label>
+                        <span>Pagination</span>
+                        <input v-model.number="filters.limit" type="number" min="1" max="100" />
+                    </label>
+                    <label>
+                        <span>Sort</span>
+                        <select v-model="filters.sort">
+                            <option value="ASC">A-Z</option>
+                            <option value="DESC">Z-A</option>
+                        </select>
+                    </label>
+
                     <button class="secondary-action" type="button" @click="resetFilters" style="width: 100%; margin-top: 8px;">
                         <span class="material-symbols-outlined">restart_alt</span>
                         Reset
@@ -342,14 +410,25 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                                 {{ tab.label }}
                             </button>
                         </div>
-                        <button class="secondary-action" type="button" @click="openCreate()">
-                            <span class="material-symbols-outlined">add</span>
-                            Baru
-                        </button>
+                        <div class="catalog-panel__actions">
+                            <button class="secondary-action" type="button" @click="openCreate()">
+                                <span class="material-symbols-outlined">add</span>
+                                Baru
+                            </button>
+                            <div class="pager">
+                                <button class="icon-button" type="button" :disabled="meta.current_page <= 1 || loading" @click="changePage(meta.current_page - 1)">
+                                    <span class="material-symbols-outlined">chevron_left</span>
+                                </button>
+                                <span>{{ meta.current_page }} / {{ meta.last_page }}</span>
+                                <button class="icon-button" type="button" :disabled="meta.current_page >= meta.last_page || loading" @click="changePage(meta.current_page + 1)">
+                                    <span class="material-symbols-outlined">chevron_right</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="filter-info">
-                        <span>{{ filteredProducts.length }} product(s) found</span>
+                        <span>{{ meta.total }} {{ panelTitle.toLowerCase() }} found</span>
                     </div>
 
                     <div v-if="activeTab === 'products'" class="table-wrap">
@@ -366,7 +445,7 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="product in filteredProducts" :key="product.guid">
+                                <tr v-for="product in paginatedProducts" :key="product.guid">
                                     <td>
                                         <strong>{{ product.name }}</strong>
                                         <span>{{ product.description || 'No description' }}</span>
@@ -410,7 +489,7 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="category in filteredCategories" :key="category.guid">
+                                <tr v-for="category in paginatedCategories" :key="category.guid">
                                     <td><strong>{{ category.name }}</strong></td>
                                     <td>
                                         <img v-if="category.image_url" class="catalog-thumb" :src="category.image_url" :alt="category.name" />
@@ -449,7 +528,7 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="group in filteredGroups" :key="group.guid">
+                                <tr v-for="group in paginatedGroups" :key="group.guid">
                                     <td><strong>{{ group.name }}</strong></td>
                                     <td>
                                         <img v-if="group.image_url" class="catalog-thumb" :src="group.image_url" :alt="group.name" />
@@ -884,7 +963,7 @@ textarea {
 .page-title,
 .summary-grid,
 .catalog-panel {
-    width: min(100%, 1280px);
+    width: min(100%, 1920px);
     margin-inline: auto;
 }
 
@@ -994,6 +1073,29 @@ textarea {
     gap: 12px;
     border-bottom: 1px solid #c6c5d4;
     padding: 14px;
+}
+
+.catalog-panel__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.pager {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #5c5f66;
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.pager .icon-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
 }
 
 .tabs {
@@ -1313,6 +1415,11 @@ small {
     .catalog-panel__header {
         align-items: flex-start;
         flex-direction: column;
+    }
+
+    .catalog-panel__actions {
+        width: 100%;
+        justify-content: space-between;
     }
 
     .tabs {

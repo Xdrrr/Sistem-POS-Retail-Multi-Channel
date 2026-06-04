@@ -1,6 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import AppNavbar from '../../Components/AppNavbar.vue';
 import AppSidebar from '../../Components/AppSidebar.vue';
 
@@ -200,20 +200,24 @@ const resetFilters = () => {
     filters.order = '';
     filters.sort = 'DESC';
     filters.page = 1;
-    loadReport();
 };
 
 const changeType = (type) => {
     activeType.value = type;
     filters.page = 1;
     filters.order = '';
-    loadReport();
 };
 
 const changePage = (page) => {
     filters.page = page;
-    loadReport();
 };
+
+let filterTimeout = null;
+watch(filters, () => {
+    filters.page = 1;
+    clearTimeout(filterTimeout);
+    filterTimeout = setTimeout(loadReport, 300);
+}, { deep: true });
 
 onMounted(loadReport);
 </script>
@@ -227,7 +231,7 @@ onMounted(loadReport);
                 <div class="brand">RetailPOS</div>
                 <label class="search-box">
                     <span class="material-symbols-outlined">search</span>
-                    <input v-model="filters.customer_search" type="text" placeholder="Search report..." @keyup.enter="loadReport" />
+                    <input v-model="filters.customer_search" type="text" placeholder="Search report..." />
                 </label>
             </template>
 
@@ -380,15 +384,6 @@ onMounted(loadReport);
                         Reset Filter
                     </button>
 
-                    <button
-                        class="primary-action"
-                        type="button"
-                        :disabled="loading"
-                        @click="loadReport"
-                        style="width: 100%; margin-top: 12px; display: flex; justify-content: center; align-items: center;">
-                        {{ loading ? 'Applying...' : 'Apply Filter' }}
-                    </button>
-        
                 </aside>
 
                 <section class="report-main">
