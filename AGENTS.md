@@ -75,6 +75,8 @@ Project ini terdiri dari **2 interface yang sharing 1 backend**:
 ### Catalog Data
 - **Tables:** `product.products`, `product.categories`, `product.groups`
 - **Fields:** name, price, is_active, description
+- Seeder catalog wajib menjaga image terkait dengan data seeder. Dummy image seed disimpan di `storage/app/public/catalog/seed/{categories|groups|products}/` dan path DB memakai format `catalog/seed/{folder}/{Str::slug(name)}.png`.
+- Jika menambah/mengubah item di `CatalogSeeder`, tambahkan/update PNG dengan slug nama yang sama agar data seed tidak menghasilkan broken image.
 
 ### Pre-computed KPIs (HomePageController)
 - sales_total, cash_total, digital_total, transactions_today, active_shift, pending_payments, completed_orders, hourly_sales, recent_orders

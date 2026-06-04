@@ -262,6 +262,12 @@ products
   └── is_active
 ```
 
+Catatan seed image katalog:
+- `CatalogSeeder` harus mengisi field `image` untuk category, group, dan product.
+- Dummy image seed disimpan di `storage/app/public/catalog/seed/{categories|groups|products}/`.
+- Path image mengikuti nama data: `catalog/seed/{folder}/{Str::slug(name)}.png`.
+- Jika data seeder ditambah atau nama item berubah, file PNG seed dengan slug yang sama wajib ikut ditambahkan/diupdate.
+
 ### Schema: `orders`
 ```
 orders

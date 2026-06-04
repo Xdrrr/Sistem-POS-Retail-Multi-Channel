@@ -13,7 +13,8 @@ const props = defineProps({
     serverDatetime: { type: String, default: () => '' },
 });
 
-const activeType = ref(props.reportTypes[0]?.key ?? 'sales');
+const initialType = new URLSearchParams(window.location.search).get('type');
+const activeType = ref(initialType && props.reportTypes.find((r) => r.key === initialType) ? initialType : props.reportTypes[0]?.key ?? 'sales');
 const rows = ref([]);
 const columns = ref([]);
 const summary = ref({});
@@ -362,7 +363,7 @@ onMounted(loadReport);
 
                     <div class="field-grid">
                         <label>
-                            <span>Limit</span>
+                            <span>Pagination</span>
                             <input v-model.number="filters.limit" type="number" min="1" max="100" />
                         </label>
                         <label>

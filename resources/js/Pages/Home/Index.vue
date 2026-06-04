@@ -1,5 +1,5 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import AppNavbar from '../../Components/AppNavbar.vue';
 import AppSidebar from '../../Components/AppSidebar.vue';
@@ -39,10 +39,10 @@ const kpis = computed(() => [
 ]);
 
 const reportMenus = [
-    { title: 'Laporan Penjualan', description: 'Ringkasan omzet, transaksi, dan metode bayar.', icon: 'monitoring' },
-    { title: 'Laporan Produk', description: 'Produk terlaris, stok menipis, dan kategori aktif.', icon: 'inventory' },
-    { title: 'Laporan Kasir', description: 'Performa kasir, shift, void, dan refund.', icon: 'badge' },
-    { title: 'Laporan Keuangan', description: 'Cash flow harian, pajak, diskon, dan settlement.', icon: 'payments' },
+    { title: 'Laporan Penjualan', description: 'Ringkasan omzet, transaksi, dan metode bayar.', icon: 'monitoring', href: '/reports?type=sales' },
+    { title: 'Laporan Katalog', description: 'Performa kasir, shift, void, dan refund.', icon: 'badge', href: '/reports?type=catalog' },
+    { title: 'Laporan Keuangan', description: 'Cash flow harian, pajak, diskon, dan settlement.', icon: 'payments', href: '/reports?type=financial' },
+    { title: 'Laporan Produk', description: 'Produk terlaris, stok menipis, dan kategori aktif.', icon: 'inventory', href: '/reports?type=products' },
 ];
 
 const hourlySales = computed(() => props.dashboard.hourly_sales ?? []);
@@ -126,7 +126,7 @@ const orders = computed(() => props.dashboard.recent_orders ?? []);
             </section>
 
             <section class="report-grid" aria-label="Report menu">
-                <article v-for="menu in reportMenus" :key="menu.title" class="report-card">
+                <article v-for="menu in reportMenus" :key="menu.title" class="report-card" @click="router.visit(menu.href)">
                     <div class="report-card__icon">
                         <span class="material-symbols-outlined">{{ menu.icon }}</span>
                     </div>
@@ -134,9 +134,9 @@ const orders = computed(() => props.dashboard.recent_orders ?? []);
                         <h3>{{ menu.title }}</h3>
                         <p>{{ menu.description }}</p>
                     </div>
-                    <button class="report-card__button" type="button" aria-label="Open report">
+                    <span class="report-card__button">
                         <span class="material-symbols-outlined">arrow_forward</span>
-                    </button>
+                    </span>
                 </article>
             </section>
 
@@ -758,6 +758,7 @@ button {
     gap: 12px;
     min-height: 118px;
     padding: 16px;
+    cursor: pointer;
 }
 
 .report-card__icon {

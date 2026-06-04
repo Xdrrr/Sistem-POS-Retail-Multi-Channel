@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductGroup;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class CatalogSeeder extends Seeder
 {
@@ -24,6 +25,7 @@ class CatalogSeeder extends Seeder
                     ['name' => $item['name']],
                     [
                         'guid' => $item['guid'],
+                        'image' => $this->imagePath('categories', $item['name']),
                         'is_active' => true,
                     ],
                 ),
@@ -46,6 +48,7 @@ class CatalogSeeder extends Seeder
                     ['name' => $item['name']],
                     [
                         'guid' => $item['guid'],
+                        'image' => $this->imagePath('groups', $item['name']),
                         'is_active' => true,
                     ],
                 ),
@@ -92,10 +95,16 @@ class CatalogSeeder extends Seeder
                     'guid' => $item['guid'],
                     'category_guid' => $categories[$item['category']]->guid,
                     'group_guid' => $groups[$item['group']]->guid,
+                    'image' => $this->imagePath('products', $item['name']),
                     'price' => $item['price'],
                     'is_active' => true,
                 ],
             );
         }
+    }
+
+    private function imagePath(string $folder, string $name): string
+    {
+        return "catalog/seed/{$folder}/".Str::slug($name).'.png';
     }
 }
