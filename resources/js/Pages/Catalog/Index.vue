@@ -23,12 +23,14 @@ const tabs = [
 const activeTab = ref('products');
 const editing = ref(null);
 const modalOpen = ref(false);
+const currentImageUrl = ref(null);
 
 const productForm = useForm({
     category_guid: '',
     group_guid: '',
     name: '',
     description: '',
+    image: null,
     price: 0,
     is_active: true,
 });
@@ -36,12 +38,14 @@ const productForm = useForm({
 const categoryForm = useForm({
     name: '',
     description: '',
+    image: null,
     is_active: true,
 });
 
 const groupForm = useForm({
     name: '',
     description: '',
+    image: null,
     is_active: true,
 });
 
@@ -63,6 +67,7 @@ const resetForms = () => {
     categoryForm.clearErrors();
     groupForm.clearErrors();
     editing.value = null;
+    currentImageUrl.value = null;
 };
 
 const openCreate = (tab = activeTab.value) => {
@@ -74,12 +79,14 @@ const openCreate = (tab = activeTab.value) => {
 const openEdit = (item) => {
     resetForms();
     editing.value = item;
+    currentImageUrl.value = item.image_url ?? null;
 
     if (activeTab.value === 'products') {
         productForm.category_guid = item.category_guid ?? '';
         productForm.group_guid = item.group_guid ?? '';
         productForm.name = item.name ?? '';
         productForm.description = item.description ?? '';
+        productForm.image = null;
         productForm.price = item.price ?? 0;
         productForm.is_active = Boolean(item.is_active);
     }
@@ -87,12 +94,14 @@ const openEdit = (item) => {
     if (activeTab.value === 'categories') {
         categoryForm.name = item.name ?? '';
         categoryForm.description = item.description ?? '';
+        categoryForm.image = null;
         categoryForm.is_active = Boolean(item.is_active);
     }
 
     if (activeTab.value === 'groups') {
         groupForm.name = item.name ?? '';
         groupForm.description = item.description ?? '';
+        groupForm.image = null;
         groupForm.is_active = Boolean(item.is_active);
     }
 
@@ -104,28 +113,44 @@ const closeModal = () => {
     resetForms();
 };
 
-const submit = () => {
+const setImage = (event) => {
+    const [file] = event.target.files ?? [];
+    activeForm.value.image = file ?? null;
+    currentImageUrl.value = file ? URL.createObjectURL(file) : editing.value?.image_url ?? null;
+};
+
+const submitForm = (form, url, method = 'post') => {
     const options = {
         preserveScroll: true,
+        forceFormData: true,
         onSuccess: closeModal,
     };
 
+    if (method === 'put') {
+        form.transform((data) => ({ ...data, _method: 'put' })).post(url, options);
+        return;
+    }
+
+    form.transform((data) => data).post(url, options);
+};
+
+const submit = () => {
     if (activeTab.value === 'categories') {
         editing.value
-            ? categoryForm.put(`/catalog/categories/${editing.value.guid}`, options)
-            : categoryForm.post('/catalog/categories', options);
+            ? submitForm(categoryForm, `/catalog/categories/${editing.value.guid}`, 'put')
+            : submitForm(categoryForm, '/catalog/categories');
     }
 
     if (activeTab.value === 'groups') {
         editing.value
-            ? groupForm.put(`/catalog/groups/${editing.value.guid}`, options)
-            : groupForm.post('/catalog/groups', options);
+            ? submitForm(groupForm, `/catalog/groups/${editing.value.guid}`, 'put')
+            : submitForm(groupForm, '/catalog/groups');
     }
 
     if (activeTab.value === 'products') {
         editing.value
-            ? productForm.put(`/catalog/products/${editing.value.guid}`, options)
-            : productForm.post('/catalog/products', options);
+            ? submitForm(productForm, `/catalog/products/${editing.value.guid}`, 'put')
+            : submitForm(productForm, '/catalog/products');
     }
 };
 
@@ -232,6 +257,7 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                         <thead>
                             <tr>
                                 <th>Product</th>
+                                <th>Image</th>
                                 <th>Category</th>
                                 <th>Group</th>
                                 <th>Price</th>
@@ -244,6 +270,12 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                                 <td>
                                     <strong>{{ product.name }}</strong>
                                     <span>{{ product.description || 'No description' }}</span>
+                                </td>
+                                <td>
+                                    <img v-if="product.image_url" class="catalog-thumb" :src="product.image_url" :alt="product.name" />
+                                    <span v-else class="image-placeholder">
+                                        <span class="material-symbols-outlined">image</span>
+                                    </span>
                                 </td>
                                 <td>{{ product.category_name || '-' }}</td>
                                 <td>{{ product.group_name || '-' }}</td>
@@ -271,6 +303,7 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                         <thead>
                             <tr>
                                 <th>Category</th>
+                                <th>Image</th>
                                 <th>Description</th>
                                 <th>Status</th>
                                 <th></th>
@@ -279,6 +312,12 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                         <tbody>
                             <tr v-for="category in categories" :key="category.guid">
                                 <td><strong>{{ category.name }}</strong></td>
+                                <td>
+                                    <img v-if="category.image_url" class="catalog-thumb" :src="category.image_url" :alt="category.name" />
+                                    <span v-else class="image-placeholder">
+                                        <span class="material-symbols-outlined">image</span>
+                                    </span>
+                                </td>
                                 <td>{{ category.description || '-' }}</td>
                                 <td>
                                     <span class="status-badge" :class="{ 'status-badge--positive': category.is_active }">
@@ -303,6 +342,7 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                         <thead>
                             <tr>
                                 <th>Group</th>
+                                <th>Image</th>
                                 <th>Description</th>
                                 <th>Status</th>
                                 <th></th>
@@ -311,6 +351,12 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                         <tbody>
                             <tr v-for="group in groups" :key="group.guid">
                                 <td><strong>{{ group.name }}</strong></td>
+                                <td>
+                                    <img v-if="group.image_url" class="catalog-thumb" :src="group.image_url" :alt="group.name" />
+                                    <span v-else class="image-placeholder">
+                                        <span class="material-symbols-outlined">image</span>
+                                    </span>
+                                </td>
                                 <td>{{ group.description || '-' }}</td>
                                 <td>
                                     <span class="status-badge" :class="{ 'status-badge--positive': group.is_active }">
@@ -391,6 +437,18 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                         <span>Deskripsi</span>
                         <textarea v-model="activeForm.description" rows="3" placeholder="Catatan master data"></textarea>
                     </label>
+                </div>
+
+                <div class="image-field">
+                    <div>
+                        <span>Gambar</span>
+                        <input type="file" accept="image/png,image/jpeg,image/webp" @change="setImage" />
+                        <small v-if="activeForm.errors.image">{{ activeForm.errors.image }}</small>
+                    </div>
+                    <img v-if="currentImageUrl" class="image-preview" :src="currentImageUrl" alt="Preview gambar" />
+                    <span v-else class="image-preview image-preview--empty">
+                        <span class="material-symbols-outlined">image</span>
+                    </span>
                 </div>
 
                 <label class="toggle-row">
@@ -918,6 +976,26 @@ td > span {
     gap: 4px;
 }
 
+.catalog-thumb,
+.image-placeholder {
+    width: 52px;
+    height: 52px;
+    border-radius: 8px;
+}
+
+.catalog-thumb {
+    display: block;
+    object-fit: cover;
+}
+
+.image-placeholder {
+    display: grid;
+    place-items: center;
+    border: 1px solid #edeeef;
+    background: #f8f9fa;
+    color: #454652;
+}
+
 .modal-backdrop {
     position: fixed;
     inset: 0;
@@ -970,6 +1048,40 @@ td > span {
     margin-bottom: 8px;
     font-size: 13px;
     font-weight: 800;
+}
+
+.image-field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 88px;
+    gap: 14px;
+    align-items: end;
+    padding: 0 18px 18px;
+}
+
+.image-field > div > span {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.image-field input[type='file'] {
+    padding: 8px 12px;
+}
+
+.image-preview {
+    width: 88px;
+    height: 88px;
+    border-radius: 8px;
+    object-fit: cover;
+}
+
+.image-preview--empty {
+    display: grid;
+    place-items: center;
+    border: 1px solid #edeeef;
+    background: #f8f9fa;
+    color: #454652;
 }
 
 input,

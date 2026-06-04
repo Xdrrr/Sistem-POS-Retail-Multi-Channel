@@ -40,6 +40,11 @@ class AuthenticationUser extends Model
         return $this->hasMany(AuthenticationSession::class, 'user_id');
     }
 
+    public function shifts(): HasMany
+    {
+        return $this->hasMany(Shift::class, 'user_id');
+    }
+
     protected function casts(): array
     {
         return [

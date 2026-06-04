@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['guid', 'category_guid', 'group_guid', 'name', 'description', 'price', 'is_active'])]
+#[Fillable(['guid', 'category_guid', 'group_guid', 'name', 'description', 'image', 'price', 'is_active'])]
 class Product extends Model
 {
     protected $table = 'product.products';

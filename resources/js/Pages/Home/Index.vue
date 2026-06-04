@@ -102,11 +102,11 @@ const orders = computed(() => props.dashboard.recent_orders ?? []);
                     </div>
                 </article>
 
-                <Link class="quick-sale-card" href="/orders">
+                <Link class="quick-sale-card" href="/reports">
                     <div>
-                        <span class="material-symbols-outlined fill">point_of_sale</span>
+                        <span class="material-symbols-outlined fill">bar_chart</span>
                     </div>
-                    <strong>Transaksi<br />Baru</strong>
+                    <strong>Lihat Report</strong>
                 </Link>
             </section>
 

@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductGroup;
 use App\Traits\Filterable;
+use App\Traits\StoresCatalogImages;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -15,6 +16,7 @@ use Illuminate\Validation\Rule;
 class ProductController extends Controller
 {
     use Filterable;
+    use StoresCatalogImages;
 
     public function index(Request $request): JsonResponse
     {
@@ -50,6 +52,7 @@ class ProductController extends Controller
             'group_guid' => $validated['group_guid'],
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'image' => $this->storeCatalogImage($request, 'products'),
             'price' => $validated['price'] ?? 0,
             'is_active' => $validated['is_active'] ?? true,
         ]);
@@ -76,6 +79,7 @@ class ProductController extends Controller
             'group_guid' => ['required', 'string', Rule::exists(ProductGroup::class, 'guid')],
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string'],
+            'image' => $this->imageRule(),
             'price' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -100,6 +104,7 @@ class ProductController extends Controller
             'group_guid' => $validated['group_guid'],
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'image' => $this->storeCatalogImage($request, 'products', $product->image),
             'price' => $validated['price'] ?? $product->price,
             'is_active' => $validated['is_active'] ?? $product->is_active,
         ]);
@@ -115,6 +120,7 @@ class ProductController extends Controller
             return $this->apiResponse('01', 'failed', null, 'Product not found.', 'Produk tidak ditemukan.', 404);
         }
 
+        $this->deleteCatalogImage($product->image);
         $product->delete();
 
         return $this->apiResponse('00', 'success', null, 'Product deleted successfully.', 'Produk berhasil dihapus.');
@@ -135,6 +141,7 @@ class ProductController extends Controller
             'group_guid' => ['required', 'string', Rule::exists(ProductGroup::class, 'guid')],
             'name' => ['required', 'string', 'max:150', Rule::unique(Product::class, 'name')->ignore($product?->id)],
             'description' => ['nullable', 'string'],
+            'image' => $this->imageRule(),
             'price' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ];
@@ -146,6 +153,8 @@ class ProductController extends Controller
             'guid' => $product->guid,
             'name' => $product->name,
             'description' => $product->description,
+            'image' => $product->image,
+            'image_url' => $this->catalogImageUrl($product->image),
             'price' => $product->price,
             'is_active' => $product->is_active,
             'category' => [

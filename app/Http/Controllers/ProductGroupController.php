@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ProductGroup;
 use App\Traits\Filterable;
+use App\Traits\StoresCatalogImages;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -13,6 +14,7 @@ use Illuminate\Validation\Rule;
 class ProductGroupController extends Controller
 {
     use Filterable;
+    use StoresCatalogImages;
 
     public function index(Request $request): JsonResponse
     {
@@ -37,6 +39,7 @@ class ProductGroupController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:100', Rule::unique(ProductGroup::class, 'name')],
             'description' => ['nullable', 'string'],
+            'image' => $this->imageRule(),
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -49,6 +52,7 @@ class ProductGroupController extends Controller
             'guid' => (string) Str::uuid(),
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'image' => $this->storeCatalogImage($request, 'groups'),
             'is_active' => $validated['is_active'] ?? true,
         ]);
 
@@ -72,6 +76,7 @@ class ProductGroupController extends Controller
             'guid' => ['required', 'string', Rule::exists(ProductGroup::class, 'guid')],
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
+            'image' => $this->imageRule(),
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -84,6 +89,7 @@ class ProductGroupController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:100', Rule::unique(ProductGroup::class, 'name')->ignore($group->id)],
             'description' => ['nullable', 'string'],
+            'image' => $this->imageRule(),
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -95,6 +101,7 @@ class ProductGroupController extends Controller
         $group->update([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'image' => $this->storeCatalogImage($request, 'groups', $group->image),
             'is_active' => $validated['is_active'] ?? $group->is_active,
         ]);
 
@@ -113,6 +120,7 @@ class ProductGroupController extends Controller
             return $this->apiResponse('02', 'failed', null, 'Group is used by product data.', 'Group masih digunakan oleh data produk.', 409);
         }
 
+        $this->deleteCatalogImage($group->image);
         $group->delete();
 
         return $this->apiResponse('00', 'success', null, 'Group deleted successfully.', 'Group berhasil dihapus.');
@@ -129,6 +137,8 @@ class ProductGroupController extends Controller
             'guid' => $group->guid,
             'name' => $group->name,
             'description' => $group->description,
+            'image' => $group->image,
+            'image_url' => $this->catalogImageUrl($group->image),
             'is_active' => $group->is_active,
             'created_at' => $group->created_at?->toISOString(),
             'updated_at' => $group->updated_at?->toISOString(),

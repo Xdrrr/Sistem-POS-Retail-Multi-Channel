@@ -6,6 +6,9 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Models\AuthenticationSession;
+use App\Models\AuthenticationUser;
+use App\Services\Shifts\ShiftService;
 use App\Traits\Filterable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,6 +21,10 @@ class OrderController extends Controller
 {
     use Filterable;
 
+    public function __construct(private readonly ShiftService $shifts)
+    {
+    }
+
     public function index(Request $request): JsonResponse
     {
         $request->validate([
@@ -27,7 +34,7 @@ class OrderController extends Controller
             'sort' => ['nullable', 'string', 'in:ASC,DESC'],
         ]);
 
-        $query = Order::query()->with(['items.product', 'payments']);
+        $query = Order::query()->with(['items.product', 'payments', 'shift', 'cashier.detail']);
         $this->applyFilter($request, $query, ['guid', 'order_number', 'status', 'payment_status', 'order_type']);
 
         $orders = $query->get()
@@ -46,7 +53,22 @@ class OrderController extends Controller
 
         $validated = $validator->validated();
 
-        $order = DB::transaction(function () use ($validated): Order {
+        $user = $this->authenticatedUser($request);
+        $shift = null;
+
+        if (! empty($validated['shift_guid'])) {
+            if (! $user) {
+                return $this->apiResponse('01', 'failed', null, 'User session not found.', 'Sesi user tidak ditemukan.', 401);
+            }
+
+            $shift = $this->shifts->attachOrder($validated['shift_guid'], $user);
+
+            if (! $shift) {
+                return $this->apiResponse('04', 'failed', null, 'Active shift not found for this user.', 'Shift aktif untuk user ini tidak ditemukan.', 409);
+            }
+        }
+
+        $order = DB::transaction(function () use ($validated, $user, $shift): Order {
             $items = $this->prepareItems($validated['items']);
             $subtotal = collect($items)->sum('subtotal');
             $discountAmount = $validated['discount_amount'] ?? 0;
@@ -56,6 +78,8 @@ class OrderController extends Controller
             $order = Order::query()->create([
                 'guid' => (string) Str::uuid(),
                 'order_number' => $validated['order_number'] ?? $this->generateOrderNumber(),
+                'shift_id' => $shift?->id,
+                'user_id' => $user?->id,
                 'customer_name' => $validated['customer_name'] ?? null,
                 'customer_phone' => $validated['customer_phone'] ?? null,
                 'table_number' => $validated['table_number'] ?? null,
@@ -176,7 +200,7 @@ class OrderController extends Controller
     private function findOrder(string $guid): ?Order
     {
         return Order::query()
-            ->with(['items.product', 'payments'])
+            ->with(['items.product', 'payments', 'shift', 'cashier.detail'])
             ->where('guid', $guid)
             ->first();
     }
@@ -185,6 +209,7 @@ class OrderController extends Controller
     {
         $rules = [
             'order_number' => ['nullable', 'string', 'max:30', Rule::unique(Order::class, 'order_number')->ignore($order?->id)],
+            'shift_guid' => ['nullable', 'string'],
             'customer_name' => ['nullable', 'string', 'max:150'],
             'customer_phone' => ['nullable', 'string', 'max:30'],
             'table_number' => ['nullable', 'string', 'max:30'],
@@ -281,9 +306,20 @@ class OrderController extends Controller
 
     private function orderData(Order $order): array
     {
+        $order->loadMissing(['shift', 'cashier.detail']);
+
         return [
             'guid' => $order->guid,
             'order_number' => $order->order_number,
+            'shift' => $order->shift ? [
+                'guid' => $order->shift->guid,
+                'shift_number' => $order->shift->shift_number,
+                'status' => $order->shift->status,
+            ] : null,
+            'cashier' => $order->cashier ? [
+                'guid' => $order->cashier->guid,
+                'full_name' => $order->cashier->detail?->full_name ?? $order->cashier->username,
+            ] : null,
             'customer_name' => $order->customer_name,
             'customer_phone' => $order->customer_phone,
             'table_number' => $order->table_number,
@@ -321,5 +357,23 @@ class OrderController extends Controller
             'created_at' => $order->created_at?->toISOString(),
             'updated_at' => $order->updated_at?->toISOString(),
         ];
+    }
+
+    private function authenticatedUser(Request $request): ?AuthenticationUser
+    {
+        $apiToken = $request->attributes->get('api_token');
+
+        if (! $apiToken) {
+            return null;
+        }
+
+        $session = AuthenticationSession::query()
+            ->with(['user.role', 'user.detail'])
+            ->where('api_token_id', $apiToken->id)
+            ->latest('last_login_at')
+            ->latest('id')
+            ->first();
+
+        return $session?->user;
     }
 }

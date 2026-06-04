@@ -184,7 +184,8 @@ const cancelOrder = (order) => {
                             type="button"
                             @click="addProduct(product)"
                         >
-                            <span class="material-symbols-outlined">fastfood</span>
+                            <img v-if="product.image_url" class="product-tile__image" :src="product.image_url" :alt="product.name" />
+                            <span v-else class="material-symbols-outlined">fastfood</span>
                             <strong>{{ product.name }}</strong>
                             <small>{{ product.category_name || 'Uncategorized' }} - {{ product.group_name || 'No group' }}</small>
                             <em>{{ formatCurrency(product.price) }}</em>
@@ -792,6 +793,13 @@ textarea:focus {
     border-radius: 8px;
     background: #e0e0ff;
     color: #343d96;
+}
+
+.product-tile__image {
+    width: 100%;
+    height: 86px;
+    border-radius: 8px;
+    object-fit: cover;
 }
 
 .product-tile strong {

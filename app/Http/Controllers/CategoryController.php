@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Traits\Filterable;
+use App\Traits\StoresCatalogImages;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -13,6 +14,7 @@ use Illuminate\Validation\Rule;
 class CategoryController extends Controller
 {
     use Filterable;
+    use StoresCatalogImages;
 
     public function index(Request $request): JsonResponse
     {
@@ -37,6 +39,7 @@ class CategoryController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:100', Rule::unique(Category::class, 'name')],
             'description' => ['nullable', 'string'],
+            'image' => $this->imageRule(),
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -49,6 +52,7 @@ class CategoryController extends Controller
             'guid' => (string) Str::uuid(),
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'image' => $this->storeCatalogImage($request, 'categories'),
             'is_active' => $validated['is_active'] ?? true,
         ]);
 
@@ -72,6 +76,7 @@ class CategoryController extends Controller
             'guid' => ['required', 'string', Rule::exists(Category::class, 'guid')],
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
+            'image' => $this->imageRule(),
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -84,6 +89,7 @@ class CategoryController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:100', Rule::unique(Category::class, 'name')->ignore($category->id)],
             'description' => ['nullable', 'string'],
+            'image' => $this->imageRule(),
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -95,6 +101,7 @@ class CategoryController extends Controller
         $category->update([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'image' => $this->storeCatalogImage($request, 'categories', $category->image),
             'is_active' => $validated['is_active'] ?? $category->is_active,
         ]);
 
@@ -113,6 +120,7 @@ class CategoryController extends Controller
             return $this->apiResponse('02', 'failed', null, 'Category is used by product data.', 'Kategori masih digunakan oleh data produk.', 409);
         }
 
+        $this->deleteCatalogImage($category->image);
         $category->delete();
 
         return $this->apiResponse('00', 'success', null, 'Category deleted successfully.', 'Kategori berhasil dihapus.');
@@ -129,6 +137,8 @@ class CategoryController extends Controller
             'guid' => $category->guid,
             'name' => $category->name,
             'description' => $category->description,
+            'image' => $category->image,
+            'image_url' => $this->catalogImageUrl($category->image),
             'is_active' => $category->is_active,
             'created_at' => $category->created_at?->toISOString(),
             'updated_at' => $category->updated_at?->toISOString(),

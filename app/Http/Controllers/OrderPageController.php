@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\Product;
+use App\Traits\StoresCatalogImages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,8 @@ use Inertia\Response;
 
 class OrderPageController extends Controller
 {
+    use StoresCatalogImages;
+
     public function index(): Response
     {
         return Inertia::render('Orders/Index', [
@@ -28,6 +31,8 @@ class OrderPageController extends Controller
                     'guid' => $product->guid,
                     'name' => $product->name,
                     'price' => $product->price,
+                    'image' => $product->image,
+                    'image_url' => $this->catalogImageUrl($product->image),
                     'category_name' => $product->category?->name,
                     'group_name' => $product->group?->name,
                 ]),

@@ -6,10 +6,11 @@ const navItems = [
     { label: 'Home', icon: 'home', href: '/' },
     // { label: 'New Sale', icon: 'add_shopping_cart', href: '/orders', activeWhen: null },
     // { label: 'Orders', icon: 'receipt_long', href: '/orders' },
-    { label: 'Shift', icon: 'calendar_today', href: '#' },
-    { label: 'Reports', icon: 'bar_chart', href: '#' },
+    { label: 'Shift', icon: 'calendar_today', href: '/shifts' },
+    { label: 'Reports', icon: 'bar_chart', href: '/reports' },
+    { label: 'History <br> Export', icon: 'history', href: '/reports/exports' },
     { label: 'Products', icon: 'inventory_2', href: '/catalog' },
-    { label: 'Sync Center', icon: 'sync', href: '#' },
+    // { label: 'Sync Center', icon: 'sync', href: '#' },
     { label: 'Settings', icon: 'settings', href: '/settings/profile' },
 ];
 
@@ -36,8 +37,8 @@ const isActive = (item) => {
                 <div class="branch-card__icon">
                     <span class="material-symbols-outlined">storefront</span>
                 </div>
-                <div class="branch-card__name">Main Branch</div>
-                <div class="branch-card__terminal">Terminal 01</div>
+                <div class="branch-card__name">Dasboard</div>
+                <!-- <div class="branch-card__terminal">Terminal 01</div> -->
             </div>
 
             <div class="nav-list">
@@ -49,7 +50,7 @@ const isActive = (item) => {
                     :href="item.href"
                 >
                     <span class="material-symbols-outlined" :class="{ fill: isActive(item) }">{{ item.icon }}</span>
-                    <span>{{ item.label }}</span>
+                    <span v-html="item.label"></span>
                 </Link>
             </div>
         </div>

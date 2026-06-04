@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductGroup;
+use App\Traits\StoresCatalogImages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -14,6 +15,8 @@ use Inertia\Response;
 
 class CatalogPageController extends Controller
 {
+    use StoresCatalogImages;
+
     public function index(): Response
     {
         return Inertia::render('Catalog/Index', [
@@ -40,6 +43,7 @@ class CatalogPageController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100', Rule::unique(Category::class, 'name')],
             'description' => ['nullable', 'string'],
+            'image' => $this->imageRule(),
             'is_active' => ['boolean'],
         ]);
 
@@ -47,6 +51,7 @@ class CatalogPageController extends Controller
             'guid' => (string) Str::uuid(),
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'image' => $this->storeCatalogImage($request, 'categories'),
             'is_active' => $validated['is_active'] ?? true,
         ]);
 
@@ -59,12 +64,14 @@ class CatalogPageController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100', Rule::unique(Category::class, 'name')->ignore($category->id)],
             'description' => ['nullable', 'string'],
+            'image' => $this->imageRule(),
             'is_active' => ['boolean'],
         ]);
 
         $category->update([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'image' => $this->storeCatalogImage($request, 'categories', $category->image),
             'is_active' => $validated['is_active'] ?? false,
         ]);
 
@@ -76,6 +83,7 @@ class CatalogPageController extends Controller
         $category = Category::query()->where('guid', $guid)->firstOrFail();
 
         if (! $category->products()->exists()) {
+            $this->deleteCatalogImage($category->image);
             $category->delete();
         }
 
@@ -87,6 +95,7 @@ class CatalogPageController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100', Rule::unique(ProductGroup::class, 'name')],
             'description' => ['nullable', 'string'],
+            'image' => $this->imageRule(),
             'is_active' => ['boolean'],
         ]);
 
@@ -94,6 +103,7 @@ class CatalogPageController extends Controller
             'guid' => (string) Str::uuid(),
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'image' => $this->storeCatalogImage($request, 'groups'),
             'is_active' => $validated['is_active'] ?? true,
         ]);
 
@@ -106,12 +116,14 @@ class CatalogPageController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100', Rule::unique(ProductGroup::class, 'name')->ignore($group->id)],
             'description' => ['nullable', 'string'],
+            'image' => $this->imageRule(),
             'is_active' => ['boolean'],
         ]);
 
         $group->update([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'image' => $this->storeCatalogImage($request, 'groups', $group->image),
             'is_active' => $validated['is_active'] ?? false,
         ]);
 
@@ -123,6 +135,7 @@ class CatalogPageController extends Controller
         $group = ProductGroup::query()->where('guid', $guid)->firstOrFail();
 
         if (! $group->products()->exists()) {
+            $this->deleteCatalogImage($group->image);
             $group->delete();
         }
 
@@ -139,6 +152,7 @@ class CatalogPageController extends Controller
             'group_guid' => $validated['group_guid'],
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'image' => $this->storeCatalogImage($request, 'products'),
             'price' => $validated['price'] ?? 0,
             'is_active' => $validated['is_active'] ?? true,
         ]);
@@ -156,6 +170,7 @@ class CatalogPageController extends Controller
             'group_guid' => $validated['group_guid'],
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'image' => $this->storeCatalogImage($request, 'products', $product->image),
             'price' => $validated['price'] ?? 0,
             'is_active' => $validated['is_active'] ?? false,
         ]);
@@ -165,7 +180,9 @@ class CatalogPageController extends Controller
 
     public function destroyProduct(string $guid): RedirectResponse
     {
-        Product::query()->where('guid', $guid)->firstOrFail()->delete();
+        $product = Product::query()->where('guid', $guid)->firstOrFail();
+        $this->deleteCatalogImage($product->image);
+        $product->delete();
 
         return redirect()->route('catalog.index');
     }
@@ -177,6 +194,7 @@ class CatalogPageController extends Controller
             'group_guid' => ['required', 'string', Rule::exists(ProductGroup::class, 'guid')],
             'name' => ['required', 'string', 'max:150', Rule::unique(Product::class, 'name')->ignore($product?->id)],
             'description' => ['nullable', 'string'],
+            'image' => $this->imageRule(),
             'price' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['boolean'],
         ];
@@ -188,6 +206,8 @@ class CatalogPageController extends Controller
             'guid' => $category->guid,
             'name' => $category->name,
             'description' => $category->description,
+            'image' => $category->image,
+            'image_url' => $this->catalogImageUrl($category->image),
             'is_active' => $category->is_active,
         ];
     }
@@ -198,6 +218,8 @@ class CatalogPageController extends Controller
             'guid' => $group->guid,
             'name' => $group->name,
             'description' => $group->description,
+            'image' => $group->image,
+            'image_url' => $this->catalogImageUrl($group->image),
             'is_active' => $group->is_active,
         ];
     }
@@ -208,6 +230,8 @@ class CatalogPageController extends Controller
             'guid' => $product->guid,
             'name' => $product->name,
             'description' => $product->description,
+            'image' => $product->image,
+            'image_url' => $this->catalogImageUrl($product->image),
             'price' => $product->price,
             'is_active' => $product->is_active,
             'category_guid' => $product->category_guid,

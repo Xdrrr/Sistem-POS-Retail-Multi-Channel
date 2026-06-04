@@ -4,11 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'guid',
     'order_number',
+    'shift_id',
+    'user_id',
     'customer_name',
     'customer_phone',
     'table_number',
@@ -34,6 +37,16 @@ class Order extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class, 'order_guid', 'guid');
+    }
+
+    public function shift(): BelongsTo
+    {
+        return $this->belongsTo(Shift::class, 'shift_id');
+    }
+
+    public function cashier(): BelongsTo
+    {
+        return $this->belongsTo(AuthenticationUser::class, 'user_id');
     }
 
     protected function casts(): array

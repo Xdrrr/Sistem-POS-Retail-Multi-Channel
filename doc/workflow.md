@@ -85,6 +85,14 @@ HandleInertiaRequests (global)
 | POST | `/orders/create` | `OrderPageController@store` | Buat order baru |
 | PUT | `/orders/{guid}/complete` | `OrderPageController@complete` | Selesaikan order |
 | PUT | `/orders/{guid}/cancel` | `OrderPageController@cancel` | Batalkan order |
+| GET | `/shifts` | `ShiftPageController@index` | Monitoring shift |
+| GET | `/shifts/{guid}` | `ShiftPageController@show` | Detail shift dan summary sales |
+| GET | `/reports` | `ReportPageController@index` | Halaman laporan |
+| POST | `/reports/{type}/preview` | `ReportController@preview` | Preview/list data report |
+| POST | `/reports/{type}/summary` | `ReportController@summary` | Agregat/KPI report |
+| POST | `/reports/{type}/export` | `ReportController@export` | Buat job export report |
+| GET | `/reports/exports/{guid}` | `ReportController@exportStatus` | Cek status export |
+| GET | `/reports/exports/{guid}/download` | `ReportController@download` | Download hasil export |
 | GET | `/settings/profile` | `ProfilePageController@edit` | Edit profil |
 | PUT | `/settings/profile` | `ProfilePageController@update` | Update profil |
 
@@ -147,6 +155,11 @@ Setiap request API wajib header: `Authorization: Bearer {token}`
 | POST | `/api/payments` | `PaymentController@index` |
 | POST | `/api/payments/store` | `PaymentController@store` |
 | GET | `/api/payments/{guid}` | `PaymentController@show` |
+| POST | `/shift/store` | `ShiftApiController@store` |
+| PUT | `/shift/close` | `ShiftApiController@close` |
+| GET | `/shift/active` | `ShiftApiController@active` |
+| GET | `/shift/{guid}` | `ShiftApiController@show` |
+| POST | `/shift` | `ShiftApiController@index` |
 
 ### Flow Order Store (Tablet)
 ```
@@ -167,6 +180,11 @@ POST /api/orders/store
   └── ...
 ```
 
+Catatan integrasi shift:
+- Jika `shift_guid` dikirim, order harus terhubung ke shift milik user login yang statusnya `open`.
+- Backend menyimpan `orders.shift_id = shifts.id` dan `orders.user_id = authenticated user id`.
+- Relasi code wajib dua arah: `Shift hasMany Order`, `Order belongsTo Shift`.
+
 ---
 
 ## Database Schema
@@ -175,9 +193,11 @@ POST /api/orders/store
 ```
 shifts
   ├── id, guid (uuid)
+  ├── user_id → users.id
   ├── user_guid → users.guid
   ├── shift_number (SH-20260603-001)
   ├── opened_at (dari tablet), closed_at (dari tablet)
+  ├── work_hours (dari frontend/tablet)
   ├── opening_balance, closing_balance
   ├── expected_balance, difference
   ├── notes, status (open/closed)
@@ -230,8 +250,8 @@ products
 orders
   ├── id, guid (uuid)
   ├── order_number (unique)
-  ├── shift_id → shifts.id (akan ditambahkan)
-  ├── user_id → users.id (akan ditambahkan)
+  ├── shift_id → authentication.shifts.id (nullable)
+  ├── user_id → authentication.users.id (nullable)
   ├── customer_name, customer_phone, table_number
   ├── order_type (dine_in/takeaway/delivery)
   ├── status (draft/open/completed/cancelled)
@@ -262,52 +282,160 @@ payments
 
 ---
 
-## Shift Feature (Akan Dibangun)
+## Shift Feature Plan (Build From Scratch)
 
-### Flow Shift Tablet
+Fitur shift dianggap belum ada di project. Implementasi dimulai dari migration, model relation, service, API controller, integrasi order, lalu dashboard monitoring.
+
+### Struktur Code yang Disarankan
+- `app/Models/Shift.php`
+- `app/Services/Shifts/ShiftService.php`
+- `app/Services/Shifts/ShiftSalesSummary.php`
+- `app/Http/Controllers/ShiftApiController.php`
+- `app/Http/Controllers/ShiftPageController.php`
+- `resources/js/Pages/Shift/Index.vue`
+- `resources/js/Pages/Shift/Show.vue`
+
+### Workflow Ringan
 ```
-[Buka Shift]
-  1. Tablet kirim: POST /api/shifts/store
-     { opened_at, opening_balance, notes }
-  2. Server validasi user belum punya shift active
-  3. Generate shift_number: SH-{Ymd}-{NNN}
-  4. Simpan opened_at dari tablet (tanpa perubahan)
-  5. Status = open
+[Open Shift]
+  1. Tablet kirim POST /shift/store
+     { opened_at, work_hours, opening_balance, notes }
+  2. Backend validasi cashier belum punya shift open.
+  3. Backend generate shift_number: SH-{Ymd}-{NNN}.
+  4. Backend simpan opened_at dan work_hours dari frontend.
+  5. expected_balance = opening_balance.
+  6. status = open.
 
-[Transaksi Selama Shift]
-  1. Setiap order menyertakan shift_guid
-  2. Kalkulasi expected_balance saat tutup nanti
+[Order Selama Shift]
+  1. Tablet mengirim shift_guid saat POST /api/orders/store.
+  2. Backend validasi shift milik user login dan status open.
+  3. Backend menyimpan orders.shift_id dan orders.user_id.
+  4. Relasi code: Shift hasMany Order, Order belongsTo Shift.
 
-[Tutup Shift]
-  1. Tablet kirim: PUT /api/shifts/close
-     { guid, closed_at, closing_balance, notes }
-  2. expected_balance = opening + SUM(cash_sales)
-  3. difference = closing - expected
-  4. Status = closed
-  5. Kembalikan summary
+[Close Shift]
+  1. Tablet kirim PUT /shift/close
+     { guid, closed_at, work_hours, closing_balance, notes }
+  2. Backend simpan closed_at dan work_hours dari frontend.
+  3. Backend hitung sales dari order dengan shift_id terkait.
+  4. expected_balance = opening_balance + cash_sales.
+  5. difference = closing_balance - expected_balance.
+  6. status = closed.
 ```
+
+### Request Open Shift
+```json
+{
+  "opened_at": "2026-06-03T08:00:00+07:00",
+  "work_hours": 8,
+  "opening_balance": 500000,
+  "notes": "Shift pagi"
+}
+```
+
+### Request Close Shift
+```json
+{
+  "guid": "uuid-shift",
+  "closed_at": "2026-06-03T16:00:00+07:00",
+  "work_hours": 8,
+  "closing_balance": 2500000,
+  "notes": "Shift selesai"
+}
+```
+
+### Summary Sales Shift
+Summary dihitung berdasarkan `orders.orders.shift_id`, bukan hanya range tanggal.
+
+```json
+{
+  "total_sales": 2100000,
+  "cash_sales": 1900000,
+  "digital_sales": 200000,
+  "order_count": 24,
+  "paid_order_count": 23,
+  "pending_payment_count": 1
+}
+```
+
+Query guideline:
+- `total_sales`: SUM `orders.total_amount` untuk order completed.
+- `cash_sales`: SUM payment amount method `cash` status `paid`.
+- `digital_sales`: SUM payment amount method selain `cash` status `paid`.
+- `order_count`: COUNT distinct order pada shift.
+- Pakai SQL aggregate + `COALESCE`, bukan collection sum.
 
 ### Endpoint Shift API
 
 | Method | Endpoint | Fungsi |
 |---|---|---|
-| `POST` | `/api/shifts/store` | Buka shift baru |
-| `PUT` | `/api/shifts/close` | Tutup shift |
-| `GET` | `/api/shifts/active` | Cek shift active user ini |
-| `GET` | `/api/shifts/{guid}` | Detail shift + summary |
-| `POST` | `/api/shifts` | List shift (filter) |
+| `POST` | `/shift/store` | Buka shift baru |
+| `PUT` | `/shift/close` | Tutup shift |
+| `GET` | `/shift/active` | Cek shift aktif user login |
+| `GET` | `/shift/{guid}` | Detail shift + summary sales |
+| `POST` | `/shift` | List shift dengan filter |
 
-### Dashboard Shift Monitoring (Akan Dibangun)
+Request list shift memakai pola filter standar `set_*`:
+
+```json
+{
+  "filter": {
+    "set_guid": false,
+    "guid": "uuid-shift",
+    "set_status": true,
+    "status": "closed",
+    "set_user_guid": false,
+    "user_guid": "uuid-user",
+    "set_from_date": true,
+    "from_date": "2026-06-01",
+    "set_to_date": true,
+    "to_date": "2026-06-03"
+  },
+  "limit": 20,
+  "page": 1,
+  "order": "opened_at",
+  "sort": "DESC"
+}
+```
+
+### Dashboard Shift Monitoring
 
 | Halaman | Route | Fungsi |
 |---|---|---|
-| Shift index | `GET /shifts` | Lihat semua shift (active + history) |
-| Shift detail | `GET /shifts/{guid}` | Detail shift, daftar order, rekap payment |
-| Dashboard | `GET /` | Card active shifts (jumlah kasir aktif, durasi, sales) |
+| Shift index | `GET /shifts` | Active shift dan history shift |
+| Shift detail | `GET /shifts/{guid}` | Detail cashier, work hours, summary sales, daftar order |
+| Dashboard | `GET /` | Card active cashier, sales shift berjalan, shift melewati estimasi work hours |
 
 ---
 
 ## Report (Akan Dibangun)
+
+### Report Module Design
+
+Report dibuat sebagai module reusable untuk Dashboard Web dan endpoint JSON berbasis web route `/reports/*` tanpa prefix `/api`.
+
+Struktur yang disarankan:
+- `app/Http/Controllers/ReportPageController.php`
+- `app/Http/Controllers/ReportController.php`
+- `app/Services/Reports/SalesReportQuery.php`
+- `app/Services/Reports/PaymentReportQuery.php`
+- `app/Services/Reports/ProductReportQuery.php`
+- `app/Services/Reports/FinancialReportQuery.php`
+- `app/Services/Reports/CustomerReportQuery.php`
+- `app/Services/Reports/OrderStatusReportQuery.php`
+- `app/Services/Reports/CatalogReportQuery.php`
+- `app/Jobs/ExportReportJob.php`
+- `app/Models/ReportExport.php` atau table metadata export sejenis
+
+### Endpoint Report
+
+| Method | Endpoint | Fungsi |
+|---|---|---|
+| `GET` | `/reports` | Render halaman report Inertia |
+| `POST` | `/reports/{type}/preview` | Preview data report dengan filter dan pagination |
+| `POST` | `/reports/{type}/summary` | Summary/agregat report |
+| `POST` | `/reports/{type}/export` | Dispatch job export XLSX/CSV |
+| `GET` | `/reports/exports/{guid}` | Cek status export: queued/processing/done/failed |
+| `GET` | `/reports/exports/{guid}/download` | Download file hasil export |
 
 ### Filter Pattern (Set-True)
 ```json
@@ -324,13 +452,83 @@ payments
   "sort": "DESC"
 }
 ```
-Implementasi: `app/Traits/Filterable.php`
+
+Catatan:
+- `app/Traits/Filterable.php` tetap boleh dipakai untuk CRUD/list sederhana
+- Untuk report besar, buat filter khusus di service report
+- Report filter harus support date range, multi-select `whereIn`, text search PostgreSQL `ILIKE`, aggregate `HAVING`, dan whitelist order column
+
+### Query Pattern
+
+- Controller hanya validasi request dan memanggil service report
+- Service report menyediakan `baseQuery()`, `applyFilters()`, `preview()`, `summary()`, dan `exportRows()`
+- Preview/page view menggunakan `paginate()` atau limit kecil
+- Export menggunakan Query Builder + `select()` eksplisit agar tidak hydrate model Eloquent
+- Agregat/KPI dihitung langsung di SQL (`SUM`, `COUNT`, `GROUP BY`), bukan `->get()->sum()` di collection
+- Sorting harus memakai whitelist map kolom, jangan langsung `orderBy($request->order)`
 
 ### Export Architecture Plan
 - **Library:** OpenSpout (`openspout/openspout`) — streaming writer, memory fixed
 - **Queue:** Process via Job biar user ga nunggu
 - **File:** Simpan sementara di `storage/app/reports/`, cleanup scheduler
-- **Chunk:** `chunkById(500)` — jangan `->get()` atau `->all()`
+- **Chunk:** `lazyById(500)` / `chunkById(500)` — jangan `->get()` atau `->all()`
+- **Preview vs Export:** preview pakai pagination kecil, export selalu async via job
+- **Cache:** cache query agregat/summary, bukan raw data
+- **Metadata:** simpan status export, filter JSON, file path, row count, error message, requested_by, expired_at
+
+Contoh export query:
+```php
+DB::table('orders.orders as o')
+    ->select([
+        'o.id',
+        'o.order_number',
+        'o.customer_name',
+        'o.order_type',
+        'o.status',
+        'o.payment_status',
+        'o.total_amount',
+        'o.ordered_at',
+    ])
+    ->whereBetween('o.ordered_at', [$from, $to])
+    ->whereIn('o.status', $statuses)
+    ->orderBy('o.id')
+    ->lazyById(500, 'o.id')
+    ->each(function ($order) use ($writer) {
+        $writer->addRow([...]);
+    });
+```
+
+Catatan join + chunk:
+- Sales export: chunk/lazy by `orders.orders.id`
+- Payment export: chunk/lazy by `orders.payments.id`
+- Product export: chunk/lazy by `orders.order_items.id`
+- Pada query join, selalu pakai alias kolom id yang jelas agar tidak bentrok
+
+### Index Report PostgreSQL
+
+```sql
+CREATE INDEX idx_orders_ordered_at ON orders.orders(ordered_at);
+CREATE INDEX idx_orders_status_ordered_at ON orders.orders(status, ordered_at);
+CREATE INDEX idx_orders_payment_status_ordered_at ON orders.orders(payment_status, ordered_at);
+CREATE INDEX idx_orders_order_type_ordered_at ON orders.orders(order_type, ordered_at);
+
+CREATE INDEX idx_payments_paid_at ON orders.payments(paid_at);
+CREATE INDEX idx_payments_status_paid_at ON orders.payments(status, paid_at);
+CREATE INDEX idx_payments_method_paid_at ON orders.payments(method, paid_at);
+
+CREATE INDEX idx_order_items_order_guid ON orders.order_items(order_guid);
+CREATE INDEX idx_order_items_product_guid ON orders.order_items(product_guid);
+CREATE INDEX idx_products_category_guid ON product.products(category_guid);
+CREATE INDEX idx_products_group_guid ON product.products(group_guid);
+```
+
+Search index opsional jika data besar:
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX idx_orders_customer_name_trgm ON orders.orders USING gin (customer_name gin_trgm_ops);
+CREATE INDEX idx_orders_customer_phone_trgm ON orders.orders USING gin (customer_phone gin_trgm_ops);
+CREATE INDEX idx_products_name_trgm ON product.products USING gin (name gin_trgm_ops);
+```
 
 ---
 

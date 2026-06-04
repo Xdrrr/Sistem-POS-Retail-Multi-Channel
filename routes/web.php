@@ -5,6 +5,9 @@ use App\Http\Controllers\CatalogPageController;
 use App\Http\Controllers\HomePageController;
 use App\Http\Controllers\OrderPageController;
 use App\Http\Controllers\ProfilePageController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ReportPageController;
+use App\Http\Controllers\ShiftPageController;
 use App\Http\Middleware\EnsureWebAuthenticated;
 use App\Http\Middleware\RedirectIfWebAuthenticated;
 use Illuminate\Support\Facades\Route;
@@ -40,4 +43,16 @@ Route::middleware(EnsureWebAuthenticated::class)->group(function (): void {
     Route::post('/orders/{guid}/payments', [OrderPageController::class, 'storePayment'])->name('orders.payments.store');
     Route::put('/orders/{guid}/complete', [OrderPageController::class, 'complete'])->name('orders.complete');
     Route::put('/orders/{guid}/cancel', [OrderPageController::class, 'cancel'])->name('orders.cancel');
+
+    Route::get('/shifts', [ShiftPageController::class, 'index'])->name('shifts.index');
+    Route::get('/shifts/{guid}', [ShiftPageController::class, 'show'])->name('shifts.show');
+
+    Route::get('/reports', [ReportPageController::class, 'index'])->name('reports.index');
+    Route::get('/reports/exports', [ReportPageController::class, 'exports'])->name('reports.exports.index');
+    Route::post('/reports/exports/history', [ReportController::class, 'exportHistory'])->name('reports.exports.history');
+    Route::post('/reports/{type}/preview', [ReportController::class, 'preview'])->name('reports.preview');
+    Route::post('/reports/{type}/summary', [ReportController::class, 'summary'])->name('reports.summary');
+    Route::post('/reports/{type}/export', [ReportController::class, 'export'])->name('reports.export');
+    Route::get('/reports/exports/{guid}', [ReportController::class, 'exportStatus'])->name('reports.exports.status');
+    Route::get('/reports/exports/{guid}/download', [ReportController::class, 'download'])->name('reports.exports.download');
 });

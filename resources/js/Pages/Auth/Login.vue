@@ -39,11 +39,11 @@ const submit = () => {
                     <strong>142</strong>
                     <small>Transactions</small>
                 </div>
-                <div>
+                <!-- <div>
                     <span class="material-symbols-outlined">cloud_sync</span>
                     <strong>0</strong>
                     <small>Pending Sync</small>
-                </div>
+                </div> -->
             </div>
         </section>
 
