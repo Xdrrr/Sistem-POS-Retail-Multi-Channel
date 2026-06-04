@@ -220,6 +220,7 @@ onMounted(() => {
 }
 
 @media (max-width: 900px) {
+    .current-time,
     .top-bar__divider,
     .profile > div:first-child {
         display: none;

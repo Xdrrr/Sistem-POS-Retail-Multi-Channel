@@ -976,6 +976,21 @@ td > span {
     gap: 4px;
 }
 
+td.row-actions {
+    display: table-cell;
+    text-align: right;
+    white-space: nowrap;
+}
+
+td.row-actions .icon-button {
+    display: inline-grid;
+    vertical-align: middle;
+}
+
+td.row-actions .icon-button + .icon-button {
+    margin-left: 4px;
+}
+
 .catalog-thumb,
 .image-placeholder {
     width: 52px;

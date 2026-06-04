@@ -21,3 +21,175 @@
 .material-symbols-outlined.fill {
     font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
+
+html,
+body,
+#app {
+    min-height: 100%;
+}
+
+html {
+    overflow-x: hidden;
+}
+
+body {
+    overflow-x: hidden;
+}
+
+@media (max-width: 1024px) {
+    body {
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .dashboard-shell {
+        min-height: 100dvh !important;
+        overflow-x: hidden !important;
+        overflow-y: visible !important;
+    }
+
+    .content {
+        min-width: 0 !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .page-title,
+    .panel__header,
+    .catalog-panel__header,
+    .table-panel__head,
+    .checkout-bar,
+    .order-card__footer {
+        min-width: 0 !important;
+    }
+
+    .summary-grid,
+    .kpi-grid,
+    .order-workspace,
+    .report-layout,
+    .history-filter,
+    .form-grid,
+    .totals {
+        min-width: 0 !important;
+    }
+
+    .table-wrap,
+    .table-scroll,
+    .product-grid,
+    .order-list,
+    .export-list,
+    .shift-table,
+    .order-table {
+        max-width: 100% !important;
+    }
+}
+
+@media (max-width: 720px) {
+    html,
+    body,
+    #app {
+        min-height: 100dvh;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+    }
+
+    .dashboard-shell {
+        width: 100% !important;
+        min-height: 100dvh !important;
+        overflow: visible !important;
+    }
+
+    .content {
+        height: auto !important;
+        min-height: calc(100dvh - 64px) !important;
+        margin-left: 0 !important;
+        overflow: visible !important;
+        padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    .page-title,
+    .panel__header,
+    .catalog-panel__header,
+    .table-panel__head,
+    .checkout-bar,
+    .order-card__main,
+    .order-card__footer,
+    .modal__header,
+    .modal__actions {
+        align-items: stretch !important;
+        flex-direction: column !important;
+    }
+
+    .page-title > *,
+    .panel__header > *,
+    .catalog-panel__header > *,
+    .table-panel__head > *,
+    .checkout-bar > *,
+    .modal__actions > * {
+        width: 100% !important;
+    }
+
+    .primary-action,
+    .secondary-action,
+    .ghost-button {
+        width: 100%;
+    }
+
+    .summary-grid,
+    .kpi-grid,
+    .order-workspace,
+    .report-layout,
+    .history-filter,
+    .form-grid,
+    .totals,
+    .order-list,
+    .field-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .report-layout {
+        display: grid !important;
+        height: auto !important;
+    }
+
+    .filter-panel,
+    .report-main,
+    .cart-panel,
+    .product-panel,
+    .orders-panel,
+    .history-panel,
+    .panel,
+    .catalog-panel {
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+
+    .report-tabs,
+    .tabs,
+    .badge-row,
+    .order-card__items {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table-wrap,
+    .table-scroll {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+        min-width: 720px;
+    }
+
+    .modal-backdrop {
+        align-items: start !important;
+        overflow-y: auto !important;
+        padding: 12px !important;
+    }
+
+    .modal {
+        max-height: none !important;
+        width: min(100%, 620px) !important;
+    }
+}

@@ -52,6 +52,23 @@ Registrasi baru selalu fallback ke role `Users` via `AuthPageController` & `Auth
 [Browser] ←→ [Inertia.js] ←→ [Laravel Controller] ←→ [PostgreSQL]
 ```
 
+### Frontend Responsive System
+
+Responsive utama dashboard web dikelola secara global di `resources/css/app.css`.
+
+Prinsip:
+- Global responsive mengatur scroll mobile/tablet untuk `html`, `body`, `#app`, `.dashboard-shell`, dan `.content`.
+- Page baru harus memakai pola wrapper `AppSidebar`, `AppNavbar`, `.dashboard-shell`, dan `.content` agar otomatis mengikuti responsive global.
+- Jangan mengunci page dengan `overflow: hidden`, `height: 100vh`, atau `height: calc(100vh...)` tanpa override mobile yang jelas.
+- Table atau daftar dengan banyak kolom harus memakai horizontal scroll (`.table-wrap` / `.table-scroll`) pada mobile.
+- Modal harus bisa discroll pada mobile; jangan membuat modal fixed-height tanpa overflow yang bisa digulir.
+- Override responsive lokal di file Vue hanya untuk kebutuhan spesifik page/komponen. Aturan scroll, grid satu kolom, table overflow, dan modal scroll tetap bersumber dari global CSS.
+
+Target viewport:
+- HP: konten scroll secara normal, sidebar menjadi bottom navigation, grid menjadi satu kolom.
+- Tablet: layout tetap terbaca, konten tidak terkunci di tinggi viewport, tabel bisa horizontal scroll.
+- Desktop/PC: layout sidebar kiri + top navbar tetap memakai ruang kerja penuh.
+
 ### Flow Login
 ```
 GET /login          → AuthPageController@login()     → render Auth/Login.vue

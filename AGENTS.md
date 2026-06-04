@@ -18,6 +18,15 @@ Project ini terdiri dari **2 interface yang sharing 1 backend**:
 - Khusus untuk **role non-karyawan** (owner/manager) — melihat data & monitoring sistem
 - Report, grafik, KPI real-time
 
+### Frontend Responsive System
+- Responsive utama dashboard web dikelola secara global di `resources/css/app.css`.
+- Global responsive mengatur scroll mobile/tablet untuk `html`, `body`, `#app`, `.dashboard-shell`, dan `.content`.
+- Jangan mengunci page baru dengan `overflow: hidden`, `height: 100vh`, atau `height: calc(100vh...)` tanpa override mobile yang jelas, karena bisa membuat halaman HP tidak bisa scroll.
+- Untuk page baru, gunakan pola wrapper yang sama: `AppSidebar`, `AppNavbar`, `.dashboard-shell`, dan `.content`, lalu biarkan responsive dasar mengikuti `resources/css/app.css`.
+- Table atau daftar dengan kolom banyak harus memakai horizontal scroll (`.table-wrap` / `.table-scroll`) di mobile, bukan memaksa semua kolom masuk viewport.
+- Modal di mobile harus bisa scroll; jangan membuat modal fixed-height tanpa overflow yang bisa digulir.
+- Override responsive lokal di file Vue hanya boleh untuk kebutuhan spesifik komponen/page; aturan scroll, grid satu kolom, table overflow, dan modal scroll tetap bersumber dari global CSS.
+
 ### Tablet POS
 - Tidak ada di repo ini (app terpisah)
 - Konsumsi API backend yang sama
