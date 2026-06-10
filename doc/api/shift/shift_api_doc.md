@@ -4,6 +4,8 @@ Base URL: `/shift`
 
 Semua endpoint shift menggunakan middleware `EnsureApiToken`.
 
+Data shift tersimpan di table `orders.shifts`. Relasi order memakai `orders.orders.shift_id` ke `orders.shifts.id`.
+
 ### Daftar Endpoint
 
 | Method | Endpoint | Auth | Deskripsi |

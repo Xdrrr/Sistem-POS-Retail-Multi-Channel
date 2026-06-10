@@ -105,9 +105,11 @@ HandleInertiaRequests (global)
 | GET | `/shifts` | `ShiftPageController@index` | Monitoring shift |
 | GET | `/shifts/{guid}` | `ShiftPageController@show` | Detail shift dan summary sales |
 | GET | `/reports` | `ReportPageController@index` | Halaman laporan |
+| GET | `/reports/exports` | `ReportPageController@exports` | Halaman riwayat export report |
+| POST | `/reports/exports/history` | `ReportController@exportHistory` | List riwayat export report |
 | POST | `/reports/{type}/preview` | `ReportController@preview` | Preview/list data report |
 | POST | `/reports/{type}/summary` | `ReportController@summary` | Agregat/KPI report |
-| POST | `/reports/{type}/export` | `ReportController@export` | Buat job export report |
+| POST | `/reports/{type}/export` | `ReportController@export` | Buat job export CSV |
 | GET | `/reports/exports/{guid}` | `ReportController@exportStatus` | Cek status export |
 | GET | `/reports/exports/{guid}/download` | `ReportController@download` | Download hasil export |
 | GET | `/settings/profile` | `ProfilePageController@edit` | Edit profil |
@@ -273,7 +275,7 @@ Catatan seed image katalog:
 orders
   ├── id, guid (uuid)
   ├── order_number (unique)
-  ├── shift_id → authentication.shifts.id (nullable)
+  ├── shift_id → orders.shifts.id (nullable)
   ├── user_id → authentication.users.id (nullable)
   ├── customer_name, customer_phone, table_number
   ├── order_type (dine_in/takeaway/delivery)
@@ -305,11 +307,11 @@ payments
 
 ---
 
-## Shift Feature Plan (Build From Scratch)
+## Shift Feature
 
-Fitur shift dianggap belum ada di project. Implementasi dimulai dari migration, model relation, service, API controller, integrasi order, lalu dashboard monitoring.
+Fitur shift sudah diimplementasikan untuk Tablet POS dan dashboard monitoring web.
 
-### Struktur Code yang Disarankan
+### Struktur Code Aktual
 - `app/Models/Shift.php`
 - `app/Services/Shifts/ShiftService.php`
 - `app/Services/Shifts/ShiftSalesSummary.php`
@@ -317,6 +319,11 @@ Fitur shift dianggap belum ada di project. Implementasi dimulai dari migration, 
 - `app/Http/Controllers/ShiftPageController.php`
 - `resources/js/Pages/Shift/Index.vue`
 - `resources/js/Pages/Shift/Show.vue`
+
+### Lokasi Data
+- Tabel shift berada di schema `orders.shifts`.
+- `orders.orders.shift_id` mereferensikan `orders.shifts.id`.
+- `orders.orders.user_id` mereferensikan `authentication.users.id`.
 
 ### Workflow Ringan
 ```
@@ -430,13 +437,13 @@ Request list shift memakai pola filter standar `set_*`:
 
 ---
 
-## Report (Akan Dibangun)
+## Report
 
 ### Report Module Design
 
-Report dibuat sebagai module reusable untuk Dashboard Web dan endpoint JSON berbasis web route `/reports/*` tanpa prefix `/api`.
+Report sudah dibuat sebagai module reusable untuk Dashboard Web dan endpoint JSON berbasis web route `/reports/*` tanpa prefix `/api`.
 
-Struktur yang disarankan:
+Struktur code aktual:
 - `app/Http/Controllers/ReportPageController.php`
 - `app/Http/Controllers/ReportController.php`
 - `app/Services/Reports/SalesReportQuery.php`
@@ -447,16 +454,27 @@ Struktur yang disarankan:
 - `app/Services/Reports/OrderStatusReportQuery.php`
 - `app/Services/Reports/CatalogReportQuery.php`
 - `app/Jobs/ExportReportJob.php`
-- `app/Models/ReportExport.php` atau table metadata export sejenis
+- `app/Models/ReportExport.php`
+
+Tipe report yang tersedia:
+- `sales` - Laporan Penjualan
+- `payments` - Laporan Pembayaran
+- `products` - Laporan Produk
+- `financial` - Laporan Keuangan
+- `customers` - Laporan Customer
+- `status` - Laporan Status Order
+- `catalog` - Laporan Katalog
 
 ### Endpoint Report
 
 | Method | Endpoint | Fungsi |
 |---|---|---|
 | `GET` | `/reports` | Render halaman report Inertia |
+| `GET` | `/reports/exports` | Render halaman riwayat export |
+| `POST` | `/reports/exports/history` | List riwayat export dengan filter |
 | `POST` | `/reports/{type}/preview` | Preview data report dengan filter dan pagination |
 | `POST` | `/reports/{type}/summary` | Summary/agregat report |
-| `POST` | `/reports/{type}/export` | Dispatch job export XLSX/CSV |
+| `POST` | `/reports/{type}/export` | Dispatch job export CSV |
 | `GET` | `/reports/exports/{guid}` | Cek status export: queued/processing/done/failed |
 | `GET` | `/reports/exports/{guid}/download` | Download file hasil export |
 
@@ -490,14 +508,14 @@ Catatan:
 - Agregat/KPI dihitung langsung di SQL (`SUM`, `COUNT`, `GROUP BY`), bukan `->get()->sum()` di collection
 - Sorting harus memakai whitelist map kolom, jangan langsung `orderBy($request->order)`
 
-### Export Architecture Plan
-- **Library:** OpenSpout (`openspout/openspout`) — streaming writer, memory fixed
-- **Queue:** Process via Job biar user ga nunggu
-- **File:** Simpan sementara di `storage/app/reports/`, cleanup scheduler
+### Export Architecture
+- **Format:** CSV (`fputcsv`) dengan file temporary di storage lokal
+- **Queue:** Process via `ExportReportJob` biar user ga nunggu
+- **File:** Simpan sementara di `storage/app/reports/`
 - **Chunk:** `lazyById(500)` / `chunkById(500)` — jangan `->get()` atau `->all()`
 - **Preview vs Export:** preview pakai pagination kecil, export selalu async via job
-- **Cache:** cache query agregat/summary, bukan raw data
-- **Metadata:** simpan status export, filter JSON, file path, row count, error message, requested_by, expired_at
+- **Metadata:** simpan status export, filter JSON, format, file path, row count, error message, requested_by, started_at, finished_at, expired_at
+- **Expiry:** export sukses diset `expired_at` 7 hari setelah selesai
 
 Contoh export query:
 ```php
@@ -565,6 +583,6 @@ CREATE INDEX idx_products_name_trgm ON product.products USING gin (name gin_trgm
 | Manajemen Order Web | ✅ | Buat order, bayar, selesai, cancel |
 | Dashboard KPI | ✅ | Harian, aktif |
 | Role & Roles | 🟡 | Role list sudah fixed (5 role), tapi otorisasi belum diimplementasi |
-| Shift | ❌ | Akan dibangun (migration + API + UI) |
-| Laporan/Report + Export | ❌ | Akan dibangun (OpenSpout + queue) |
-| Shift Filter Dashboard | ❌ | Akan ditambahkan ke dashboard |
+| Shift | ✅ | Migration, API, service, integrasi order, dan UI monitoring tersedia |
+| Laporan/Report + Export | ✅ | Preview, summary, export CSV async, status, download, dan history tersedia |
+| Shift Filter Dashboard | ✅ | Halaman `/shifts` menyediakan filter status dan pencarian cashier/nomor shift |
