@@ -21,6 +21,7 @@ const filters = reactive({
 
 const modalOpen = ref(false);
 const editing = ref(null);
+const adjustMode = ref(false);
 const currentPage = ref(1);
 
 const form = useForm({
@@ -30,6 +31,13 @@ const form = useForm({
     current_stock: 0,
     minimum_stock: 0,
     is_active: true,
+});
+
+const adjustForm = useForm({
+    product_guid: '',
+    type: 'in',
+    qty: 1,
+    notes: '',
 });
 
 const branches = computed(() => [...new Set(props.inventories.map((item) => item.id_cabang).filter(Boolean))].sort());
@@ -113,16 +121,22 @@ const resetForm = () => {
 
 const openCreate = () => {
     resetForm();
+    adjustMode.value = true;
+    editing.value = null;
+    adjustForm.reset();
+    adjustForm.type = 'in';
+    adjustForm.qty = 1;
+    adjustForm.notes = '';
     modalOpen.value = true;
 };
 
 const openEdit = (item) => {
     resetForm();
+    adjustMode.value = false;
     editing.value = item;
     form.product_guid = item.product_guid ?? '';
     form.id_cabang = item.id_cabang ?? 'PUSAT';
     form.unit = item.unit ?? 'pcs';
-    form.current_stock = item.current_stock ?? 0;
     form.minimum_stock = item.minimum_stock ?? 0;
     form.is_active = Boolean(item.is_active);
     modalOpen.value = true;
@@ -131,6 +145,7 @@ const openEdit = (item) => {
 const closeModal = () => {
     modalOpen.value = false;
     resetForm();
+    adjustForm.reset();
 };
 
 const submit = () => {
@@ -138,6 +153,11 @@ const submit = () => {
         preserveScroll: true,
         onSuccess: closeModal,
     };
+
+    if (adjustMode.value) {
+        adjustForm.post('/inventory/items/adjust', options);
+        return;
+    }
 
     if (editing.value) {
         form.transform((data) => ({ ...data, _method: 'put' })).post(`/inventory/items/${editing.value.guid}`, options);
@@ -182,10 +202,16 @@ const changePage = (page) => {
                     <h1>Inventory</h1>
                     <p>Kelola stok produk restoran per cabang dan pantau item yang mulai menipis.</p>
                 </div>
-                <button class="primary-action" type="button" @click="openCreate">
-                    <span class="material-symbols-outlined fill">add_circle</span>
-                    Tambah Stok
-                </button>
+                <div class="page-actions">
+                    <Link class="secondary-action" href="/inventory/history">
+                        <span class="material-symbols-outlined">history</span>
+                        Riwayat Stok
+                    </Link>
+                    <button class="primary-action" type="button" @click="openCreate">
+                        <span class="material-symbols-outlined fill">add_circle</span>
+                        Adjust Stok
+                    </button>
+                </div>
             </section>
 
             <section class="summary-grid" aria-label="Inventory summary">
@@ -282,10 +308,10 @@ const changePage = (page) => {
                             <p>{{ meta.total }} item ditampilkan</p>
                         </div>
                         <div class="panel-actions">
-                            <button class="secondary-action" type="button" @click="openCreate">
+                            <!-- <button class="secondary-action" type="button" @click="openCreate">
                                 <span class="material-symbols-outlined">add</span>
                                 Baru
-                            </button>
+                            </button> -->
                             <div class="pager">
                                 <button class="icon-button" type="button" :disabled="meta.current_page <= 1" @click="changePage(meta.current_page - 1)">
                                     <span class="material-symbols-outlined">chevron_left</span>
@@ -330,6 +356,9 @@ const changePage = (page) => {
                                         </span>
                                     </td>
                                     <td class="row-actions">
+                                        <Link class="icon-button" :href="`/inventory/items/${item.guid}/history`" aria-label="History stok">
+                                            <span class="material-symbols-outlined">history</span>
+                                        </Link>
                                         <button class="icon-button" type="button" aria-label="Edit inventory" @click="openEdit(item)">
                                             <span class="material-symbols-outlined">edit</span>
                                         </button>
@@ -353,63 +382,110 @@ const changePage = (page) => {
             <form class="modal" @submit.prevent="submit">
                 <div class="modal__header">
                     <div>
-                        <h2>{{ editing ? 'Edit Stok' : 'Tambah Stok' }}</h2>
-                        <p>Stok awal restoran memakai cabang PUSAT dan satuan pcs.</p>
+                        <h2>{{ adjustMode ? 'Adjust Stok' : 'Edit Stok' }}</h2>
+                        <p>{{ adjustMode ? 'Tambah atau kurangi stok barang.' : 'Ubah data inventory selain stok.' }}</p>
                     </div>
                     <button class="icon-button" type="button" aria-label="Close modal" @click="closeModal">
                         <span class="material-symbols-outlined">close</span>
                     </button>
                 </div>
 
-                <div class="form-grid">
-                    <label class="form-grid__wide">
-                        <span>Product</span>
-                        <select v-model="form.product_guid">
-                            <option value="">Pilih produk</option>
-                            <option v-for="product in products" :key="product.guid" :value="product.guid">
-                                {{ product.name }}
-                            </option>
-                        </select>
-                        <small v-if="form.errors.product_guid">{{ form.errors.product_guid }}</small>
+                <template v-if="adjustMode">
+                    <div class="form-grid">
+                        <label class="form-grid__wide">
+                            <span>Product</span>
+                            <select v-model="adjustForm.product_guid">
+                                <option value="">Pilih produk</option>
+                                <option v-for="item in inventories" :key="item.guid" :value="item.product_guid">
+                                    {{ item.product_name }} (stok: {{ formatNumber(item.current_stock) }})
+                                </option>
+                            </select>
+                            <small v-if="adjustForm.errors.product_guid">{{ adjustForm.errors.product_guid }}</small>
+                        </label>
+
+                        <label>
+                            <span>Tipe</span>
+                            <select v-model="adjustForm.type">
+                                <option value="in">Tambah Stok (+)</option>
+                                <option value="out">Kurangi Stok (-)</option>
+                            </select>
+                        </label>
+
+                        <label>
+                            <span>Jumlah</span>
+                            <input v-model.number="adjustForm.qty" type="number" min="0.01" step="0.01" />
+                            <small v-if="adjustForm.errors.qty">{{ adjustForm.errors.qty }}</small>
+                        </label>
+
+                        <label class="form-grid__wide">
+                            <span>Catatan</span>
+                            <textarea v-model="adjustForm.notes" rows="2" placeholder="Opsional"></textarea>
+                            <small v-if="adjustForm.errors.notes">{{ adjustForm.errors.notes }}</small>
+                        </label>
+                    </div>
+
+                    <div class="modal__actions">
+                        <button class="secondary-action" type="button" @click="closeModal">Batal</button>
+                        <button class="primary-action" type="submit" :disabled="adjustForm.processing">
+                            <span class="material-symbols-outlined fill">save</span>
+                            Simpan
+                        </button>
+                    </div>
+                </template>
+
+                <template v-else>
+                    <div class="form-grid">
+                        <label class="form-grid__wide">
+                            <span>Product</span>
+                            <select v-model="form.product_guid">
+                                <option value="">Pilih produk</option>
+                                <option v-for="product in products" :key="product.guid" :value="product.guid">
+                                    {{ product.name }}
+                                </option>
+                            </select>
+                            <small v-if="form.errors.product_guid">{{ form.errors.product_guid }}</small>
+                        </label>
+
+                        <label>
+                            <span>Cabang</span>
+                            <input v-model="form.id_cabang" type="text" placeholder="PUSAT" />
+                            <small v-if="form.errors.id_cabang">{{ form.errors.id_cabang }}</small>
+                        </label>
+
+                        <label>
+                            <span>Unit</span>
+                            <input v-model="form.unit" type="text" placeholder="pcs" />
+                            <small v-if="form.errors.unit">{{ form.errors.unit }}</small>
+                        </label>
+
+                        <label>
+                            <span>Current Stock</span>
+                            <div class="stock-readonly">
+                                <strong>{{ formatNumber(editing?.current_stock ?? 0) }}</strong>
+                                <span class="text-muted">Gunakan Adjust Stok untuk ubah stok</span>
+                            </div>
+                        </label>
+
+                        <label>
+                            <span>Minimum Stock Alert</span>
+                            <input v-model="form.minimum_stock" type="number" min="0" step="0.01" />
+                            <small v-if="form.errors.minimum_stock">{{ form.errors.minimum_stock }}</small>
+                        </label>
+                    </div>
+
+                    <label class="toggle-row">
+                        <input v-model="form.is_active" type="checkbox" />
+                        <span>Active</span>
                     </label>
 
-                    <label>
-                        <span>Cabang</span>
-                        <input v-model="form.id_cabang" type="text" placeholder="PUSAT" />
-                        <small v-if="form.errors.id_cabang">{{ form.errors.id_cabang }}</small>
-                    </label>
-
-                    <label>
-                        <span>Unit</span>
-                        <input v-model="form.unit" type="text" placeholder="pcs" />
-                        <small v-if="form.errors.unit">{{ form.errors.unit }}</small>
-                    </label>
-
-                    <label>
-                        <span>Current Stock</span>
-                        <input v-model="form.current_stock" type="number" min="0" step="0.01" />
-                        <small v-if="form.errors.current_stock">{{ form.errors.current_stock }}</small>
-                    </label>
-
-                    <label>
-                        <span>Minimum Stock</span>
-                        <input v-model="form.minimum_stock" type="number" min="0" step="0.01" />
-                        <small v-if="form.errors.minimum_stock">{{ form.errors.minimum_stock }}</small>
-                    </label>
-                </div>
-
-                <label class="toggle-row">
-                    <input v-model="form.is_active" type="checkbox" />
-                    <span>Active</span>
-                </label>
-
-                <div class="modal__actions">
-                    <button class="secondary-action" type="button" @click="closeModal">Batal</button>
-                    <button class="primary-action" type="submit" :disabled="form.processing">
-                        <span class="material-symbols-outlined fill">save</span>
-                        Simpan
-                    </button>
-                </div>
+                    <div class="modal__actions">
+                        <button class="secondary-action" type="button" @click="closeModal">Batal</button>
+                        <button class="primary-action" type="submit" :disabled="form.processing">
+                            <span class="material-symbols-outlined fill">save</span>
+                            Simpan
+                        </button>
+                    </div>
+                </template>
             </form>
         </div>
     </div>
@@ -467,12 +543,19 @@ button {
 
 .search-box input,
 input,
-select {
+select,
+textarea {
     border: 1px solid #c6c5d4;
     border-radius: 8px;
     background: #ffffff;
     color: #191c1d;
     outline: 0;
+}
+
+textarea {
+    resize: vertical;
+    padding: 10px 12px;
+    font: inherit;
 }
 
 .search-box input {
@@ -513,6 +596,13 @@ select {
     justify-content: space-between;
     gap: 16px;
     margin-bottom: 12px;
+}
+
+.page-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
 .page-title h1,
@@ -677,6 +767,16 @@ select {
     height: 42px;
     padding: 0 12px;
     font: inherit;
+}
+
+.form-grid textarea {
+    width: 100%;
+    padding: 10px 12px;
+    font: inherit;
+}
+
+.form-grid textarea {
+    padding: 10px 12px;
 }
 
 .filter-panel .secondary-action {
@@ -854,6 +954,25 @@ small {
     font-weight: 800;
 }
 
+.stock-readonly {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 42px;
+    justify-content: center;
+}
+
+.stock-readonly strong {
+    font-size: 20px;
+    color: #1a237e;
+}
+
+.stock-readonly .text-muted {
+    font-size: 11px;
+    color: #5d6268;
+    font-weight: 400;
+}
+
 .toggle-row input {
     width: 16px;
     height: 16px;
@@ -898,6 +1017,10 @@ small {
     .modal__actions {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    .page-actions {
+        align-self: flex-start;
     }
 
     .panel-actions {

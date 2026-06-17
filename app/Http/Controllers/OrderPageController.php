@@ -2,8 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuthenticationUser;
+use App\Models\InventoryHistory;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductInventory;
+use App\Services\Inventory\InsufficientStockException;
+use App\Services\Inventory\InventoryService;
 use App\Traits\StoresCatalogImages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -140,18 +145,116 @@ class OrderPageController extends Controller
         return redirect()->route('orders.index')->with('success', 'Payment berhasil ditambahkan.');
     }
 
-    public function complete(string $guid): RedirectResponse
+    public function complete(Request $request, string $guid): RedirectResponse
     {
-        Order::query()->where('guid', $guid)->firstOrFail()->update(['status' => 'completed']);
+        $order = Order::query()->with('items')->where('guid', $guid)->firstOrFail();
+        $service = app(InventoryService::class);
+        $userGuid = $this->authUserGuid($request);
+
+        DB::transaction(function () use ($order, $service, $userGuid): void {
+            if ($order->status === 'completed') {
+                return;
+            }
+
+            foreach ($order->items as $item) {
+                $inventory = ProductInventory::query()
+                    ->where('product_guid', $item->product_guid)
+                    ->where('id_cabang', 'PUSAT')
+                    ->first();
+
+                if (! $inventory) {
+                    continue;
+                }
+
+                $existing = InventoryHistory::query()
+                    ->where('reference_type', 'order')
+                    ->where('reference_id', $order->guid)
+                    ->where('product_guid', $item->product_guid)
+                    ->where('is_active', true)
+                    ->exists();
+
+                if ($existing) {
+                    continue;
+                }
+
+                $service->adjustStock(
+                    inventory: $inventory,
+                    type: 'out',
+                    qty: (float) $item->quantity,
+                    referenceType: 'order',
+                    referenceId: $order->guid,
+                    notes: "Deduct stock for order {$order->order_number}",
+                    createdBy: $userGuid,
+                    userGuidReff: $userGuid,
+                );
+            }
+
+            $order->update(['status' => 'completed']);
+        });
 
         return redirect()->route('orders.index');
     }
 
-    public function cancel(string $guid): RedirectResponse
+    public function cancel(Request $request, string $guid): RedirectResponse
     {
-        Order::query()->where('guid', $guid)->firstOrFail()->update(['status' => 'cancelled']);
+        $order = Order::query()->with('items')->where('guid', $guid)->firstOrFail();
+        $service = app(InventoryService::class);
+        $userGuid = $this->authUserGuid($request);
+
+        DB::transaction(function () use ($order, $service, $userGuid): void {
+            if ($order->status === 'cancelled') {
+                return;
+            }
+
+            foreach ($order->items as $item) {
+                $inventory = ProductInventory::query()
+                    ->where('product_guid', $item->product_guid)
+                    ->where('id_cabang', 'PUSAT')
+                    ->first();
+
+                if (! $inventory) {
+                    continue;
+                }
+
+                $existing = InventoryHistory::query()
+                    ->where('reference_type', 'order')
+                    ->where('reference_id', $order->guid)
+                    ->where('product_guid', $item->product_guid)
+                    ->where('type', 'in')
+                    ->where('is_active', true)
+                    ->exists();
+
+                if ($existing) {
+                    continue;
+                }
+
+                $service->adjustStock(
+                    inventory: $inventory,
+                    type: 'in',
+                    qty: (float) $item->quantity,
+                    referenceType: 'order',
+                    referenceId: $order->guid,
+                    notes: "Restore stock for cancelled order {$order->order_number}",
+                    createdBy: $userGuid,
+                    userGuidReff: $userGuid,
+                );
+            }
+
+            $order->update(['status' => 'cancelled']);
+        });
 
         return redirect()->route('orders.index');
+    }
+
+    private function authUserGuid(Request $request): ?string
+    {
+        $userId = $request->session()->get('web_auth_user_id');
+
+        if (! $userId) {
+            return null;
+        }
+
+        return AuthenticationUser::query()->where('id', $userId)->value('guid');
     }
 
     private function orderRules(): array
@@ -192,6 +295,12 @@ class OrderPageController extends Controller
 
     private function orderData(Order $order): array
     {
+        $mutations = InventoryHistory::query()
+            ->where('reference_type', 'order')
+            ->where('reference_id', $order->guid)
+            ->where('is_active', true)
+            ->get();
+
         return [
             'guid' => $order->guid,
             'order_number' => $order->order_number,
@@ -218,6 +327,12 @@ class OrderPageController extends Controller
                 'amount' => $payment->amount,
                 'paid_at' => $payment->paid_at?->format('d M Y H:i'),
                 'reference_number' => $payment->reference_number,
+            ])->values(),
+            'stock_mutations' => $mutations->map(fn (InventoryHistory $m): array => [
+                'guid' => $m->guid,
+                'product_name' => $m->inventory?->product?->name ?? '-',
+                'type' => $m->type,
+                'qty' => (float) $m->qty,
             ])->values(),
         ];
     }

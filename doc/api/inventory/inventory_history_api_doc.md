@@ -36,7 +36,7 @@ Melakukan mutasi stok (in/out/adjustment) dan mencatat history.
 
 | Field | Rule |
 |---|---|
-| `inventory_guid` | required, string, exists:product.inventories,guid |
+| `inventory_guid` | required, string |
 | `type` | required, string, in:in,out,adjustment |
 | `qty` | required, numeric, min:0.01 |
 | `reference_type` | nullable, string, in:order,manual_adjustment |
@@ -52,6 +52,7 @@ Melakukan mutasi stok (in/out/adjustment) dan mencatat history.
 - Untuk `type = out`, validasi stok cukup (`current_stock >= qty`).
 - `stock_before` dan `stock_after` dicatat otomatis.
 - `created_by` diisi dari authenticated user.
+- `user_guid_reff` diisi dari GUID user referensi (misal kasir untuk order, admin untuk manual).
 - Idempotent untuk reference yang sama: sudah ada history dengan `reference_type` + `reference_id` yang sama = tolak (kecuali `manual_adjustment`).
 
 ### Response (200)
@@ -121,16 +122,18 @@ Melakukan mutasi stok (in/out/adjustment) dan mencatat history.
 
 ## 2. List History - `POST /inventory/history`
 
-Mendapatkan daftar riwayat mutasi stok untuk suatu inventory.
+Mendapatkan daftar riwayat mutasi stok dengan filter dan pagination.
 
 ### Request Body (with filter)
 
 ```json
 {
     "filter": {
-        "set_inventory_guid": true,
+        "set_inventory_guid": false,
         "inventory_guid": "7c5b5a21-f805-45cb-8f76-9c41d741ca91",
-        "set_type": false,
+        "set_product_guid": false,
+        "product_guid": "33333333-3333-4333-8333-000000000001",
+        "set_type": true,
         "type": "out",
         "set_reference_type": false,
         "reference_type": "order",
@@ -150,8 +153,10 @@ Mendapatkan daftar riwayat mutasi stok untuk suatu inventory.
 
 | Field | Rule |
 |---|---|
-| `filter.set_inventory_guid` | required, boolean |
-| `filter.inventory_guid` | required if set, string, exists:product.inventories,guid |
+| `filter.set_inventory_guid` | nullable, boolean |
+| `filter.inventory_guid` | nullable, string |
+| `filter.set_product_guid` | nullable, boolean |
+| `filter.product_guid` | nullable, string |
 | `filter.set_type` | nullable, boolean |
 | `filter.type` | nullable, string, in:in,out,adjustment |
 | `filter.set_reference_type` | nullable, boolean |
@@ -172,31 +177,44 @@ Mendapatkan daftar riwayat mutasi stok untuk suatu inventory.
     "response": {
         "code": "00",
         "status": "success",
-        "data": [
-            {
-                "guid": "ffffffff-1111-4111-8111-000000000001",
-                "inventory_guid": "7c5b5a21-f805-45cb-8f76-9c41d741ca91",
-                "product_name": "Nasi Goreng Special",
-                "type": "out",
-                "qty": 10,
-                "stock_before": 50,
-                "stock_after": 40,
-                "reference_type": "order",
-                "reference_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-                "notes": "Deduct stock for order #ORD-001",
-                "created_by": {
-                    "guid": "uuid-user",
-                    "username": "achmad"
-                },
-                "created_at": "2026-06-17T10:00:00.000000Z",
-                "updated_at": "2026-06-17T10:00:00.000000Z"
+        "data": {
+            "data": [
+                {
+                    "guid": "ffffffff-1111-4111-8111-000000000001",
+                    "inventory_guid": "7c5b5a21-f805-45cb-8f76-9c41d741ca91",
+                    "product_name": "Nasi Goreng Special",
+                    "product": {
+                        "guid": "33333333-3333-4333-8333-000000000001",
+                        "name": "Nasi Goreng Special",
+                        "category": {
+                            "guid": "11111111-1111-4111-8111-000000000001",
+                            "name": "makanan"
+                        },
+                        "group": {
+                            "guid": "22222222-2222-4222-8222-000000000002",
+                            "name": "nasi"
+                        }
+                    },
+                    "id_cabang": "PUSAT",
+                    "type": "out",
+                    "qty": 10,
+                    "stock_before": 50,
+                    "stock_after": 40,
+                    "reference_type": "order",
+                    "reference_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                    "notes": "Deduct stock for order #ORD-001",
+                    "created_by": "Achmad",
+                    "user_guid_reff": "uuid-user",
+                    "created_at": "2026-06-17T10:00:00.000000Z",
+                    "updated_at": "2026-06-17T10:00:00.000000Z"
+                }
+            ],
+            "pagination": {
+                "total": 25,
+                "per_page": 20,
+                "current_page": 1,
+                "last_page": 2
             }
-        ],
-        "pagination": {
-            "total": 25,
-            "per_page": 20,
-            "current_page": 1,
-            "last_page": 2
         }
     }
 }
@@ -212,7 +230,9 @@ Mendapatkan daftar riwayat mutasi stok untuk suatu inventory.
 |---|---|---|
 | `guid` | string (UUID) | Unique identifier history |
 | `inventory_guid` | string (UUID) | GUID inventory terkait |
-| `product_name` | string | Nama produk (denormalisasi/dari relasi) |
+| `product_name` | string | Nama produk (denormalisasi) |
+| `product` | object or null | `{ guid, name, category: { guid, name }, group: { guid, name } }` |
+| `id_cabang` | string | Kode cabang |
 | `type` | string | `in` / `out` / `adjustment` |
 | `qty` | float | Jumlah mutasi (selalu positif) |
 | `stock_before` | float | Stok sebelum mutasi |
@@ -220,7 +240,8 @@ Mendapatkan daftar riwayat mutasi stok untuk suatu inventory.
 | `reference_type` | string or null | `order` / `manual_adjustment` |
 | `reference_id` | string (UUID) or null | GUID referensi |
 | `notes` | string or null | Keterangan tambahan |
-| `created_by` | object or null | `{ guid, username }` |
+| `created_by` | string or null | Nama user yang membuat (full_name / username) |
+| `user_guid_reff` | string (UUID) or null | GUID user referensi (kasir untuk order, admin untuk manual) |
 | `created_at` | string (ISO 8601) | Waktu mutasi terjadi |
 | `updated_at` | string (ISO 8601) | Waktu terakhir update |
 
@@ -232,4 +253,5 @@ Important constraints:
 - `guid` unique.
 - `inventory_id` references `product.inventories.guid`.
 - `created_by` references `authentication.users.guid`.
-- Indexes on: `inventory_id`, `product_guid`, `id_cabang`, `reference_type`, `reference_id`, `created_at`.
+- `user_guid_reff` references `authentication.users.guid`.
+- Indexes on: `inventory_id`, `product_guid`, `id_cabang`, `reference_type`, `reference_id`, `is_active`, `created_at`, `user_guid_reff`.

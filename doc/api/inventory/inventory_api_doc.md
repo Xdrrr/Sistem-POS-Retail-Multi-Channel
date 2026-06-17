@@ -11,10 +11,12 @@ Inventory disimpan pada tabel `product.inventories`. Modul ini dipakai untuk men
 | Method | Endpoint | Auth | Deskripsi |
 |--------|----------|------|-----------|
 | `POST` | `/inventory` | EnsureApiToken | List inventory |
-| `POST` | `/inventory/store` | EnsureApiToken | Tambah inventory produk |
+| `POST` | `/inventory/store` | EnsureApiToken | Tambah inventory produk (+ history jika current_stock > 0) |
 | `GET` | `/inventory/{guid}` | EnsureApiToken | Detail inventory |
-| `PUT` | `/inventory/update` | EnsureApiToken | Update inventory |
-| `DELETE` | `/inventory/{guid}` | EnsureApiToken | Nonaktifkan/hapus inventory |
+| `PUT` | `/inventory/update` | EnsureApiToken | Update inventory (non-stok) |
+| `DELETE` | `/inventory/{guid}` | EnsureApiToken | Nonaktifkan inventory (soft delete) |
+| `POST` | `/inventory/adjust` | EnsureApiToken | Adjust stok (in/out/adjustment) |
+| `POST` | `/inventory/history` | EnsureApiToken | List riwayat mutasi stok |
 
 ---
 
@@ -124,7 +126,7 @@ Membuat data stok untuk produk pada cabang tertentu.
     "product_guid": "33333333-3333-4333-8333-000000000001",
     "id_cabang": "PUSAT",
     "unit": "pcs",
-    "current_stock": 100,
+    "current_stock": 50,
     "minimum_stock": 10,
     "is_active": true
 }
@@ -144,6 +146,7 @@ Membuat data stok untuk produk pada cabang tertentu.
 ### Logic
 
 - Kombinasi `product_guid` dan `id_cabang` harus unik.
+- Jika `current_stock` diisi > 0, otomatis tercatat di `inventory_history` dengan `type=in`, `notes=add stok`.
 - Untuk fase awal, `id_cabang` default adalah `PUSAT`.
 - Untuk fase awal POS restoran, `unit` default adalah `pcs`.
 
@@ -162,7 +165,7 @@ Membuat data stok untuk produk pada cabang tertentu.
             },
             "id_cabang": "PUSAT",
             "unit": "pcs",
-            "current_stock": 100,
+            "current_stock": 50,
             "minimum_stock": 10,
             "is_low_stock": false,
             "is_active": true,
@@ -246,7 +249,9 @@ Membuat data stok untuk produk pada cabang tertentu.
 
 ## 4. Update Inventory - `PUT /inventory/update`
 
-Mengubah stok, minimum stok, status aktif, atau data cabang/satuan inventory.
+Mengubah data inventory selain stok (produk, cabang, satuan, minimum stok, status aktif).
+
+⚠️ **Endpoint ini TIDAK untuk mengubah stok.** Gunakan `POST /inventory/adjust` untuk mutasi stok (in/out/adjustment) agar tercatat di `inventory_history`.
 
 ### Request Body
 
@@ -256,7 +261,6 @@ Mengubah stok, minimum stok, status aktif, atau data cabang/satuan inventory.
     "product_guid": "33333333-3333-4333-8333-000000000001",
     "id_cabang": "PUSAT",
     "unit": "pcs",
-    "current_stock": 125,
     "minimum_stock": 15,
     "is_active": true
 }
@@ -270,15 +274,14 @@ Mengubah stok, minimum stok, status aktif, atau data cabang/satuan inventory.
 | `product_guid` | required, string, exists:product.products,guid |
 | `id_cabang` | nullable, string, max:50 |
 | `unit` | nullable, string, max:20 |
-| `current_stock` | required, numeric, min:0 |
 | `minimum_stock` | nullable, numeric, min:0 |
 | `is_active` | nullable, boolean |
 
 ### Logic
 
+- `current_stock` **tidak termasuk** dalam endpoint ini. Stok hanya diubah via `POST /inventory/adjust`.
 - Jika `product_guid` atau `id_cabang` diubah, pastikan kombinasi baru tidak bentrok dengan inventory lain.
-- `current_stock` TIDAK BOLEH diubah langsung di endpoint ini. Gunakan endpoint `/inventory/adjust` untuk mutasi stok agar tercatat di `inventory_history`. Kolom ini tetap dikirim untuk update data non-stok (misal mengisi nilai awal inventory baru).
-- Untuk keperluan mutasi stok (in/out/adjustment), gunakan `POST /inventory/adjust`.
+- Setiap perubahan field (id_cabang, unit, minimum_stock, is_active) **otomatis** dicatat ke `inventory_history` dengan `type=adjustment`, `reference_type=manual_adjustment`, dan `user_guid_reff` dari user yang melakukan update.
 
 ### Response (200)
 
@@ -310,18 +313,16 @@ Mengubah stok, minimum stok, status aktif, atau data cabang/satuan inventory.
 
 ---
 
-## 5. Delete Inventory - `DELETE /inventory/{guid}`
+## 5. Delete (Deactivate) Inventory - `DELETE /inventory/{guid}`
 
-Menghapus atau menonaktifkan data inventory.
+Menonaktifkan data inventory dengan mengubah `is_active` menjadi `false`. Data tidak dihapus secara fisik untuk menjaga integritas histori stok dan order.
 
-### Recommended Behavior
+### Logic
 
-Untuk data inventory yang sudah pernah dipakai transaksi, lebih aman melakukan soft behavior:
-
-- set `is_active = false`
-- jangan hapus fisik data jika sudah ada histori stok atau order yang memakai produk tersebut
-
-Jika belum ada histori dan bisnis mengizinkan, data boleh dihapus fisik.
+- Set `is_active = false` (soft delete).
+- Data tetap ada di database untuk keperluan audit trail.
+- Jika inventory sudah `is_active = false`, kembalikan error 409.
+- Untuk reaktivasi, gunakan endpoint `PUT /inventory/update` dengan `is_active: true`.
 
 ### Response (200)
 
@@ -331,8 +332,8 @@ Jika belum ada histori dan bisnis mengizinkan, data boleh dihapus fisik.
         "code": "00",
         "status": "success",
         "data": null,
-        "message_en": "Inventory deleted successfully.",
-        "message_id": "Inventory berhasil dihapus."
+        "message_en": "Inventory deactivated successfully.",
+        "message_id": "Inventory berhasil dinonaktifkan."
     }
 }
 ```
@@ -351,35 +352,41 @@ Jika belum ada histori dan bisnis mengizinkan, data boleh dihapus fisik.
 }
 ```
 
+### Error - Already Inactive (409)
+
+```json
+{
+    "response": {
+        "code": "02",
+        "status": "failed",
+        "data": null,
+        "message_en": "Inventory is already inactive.",
+        "message_id": "Inventory sudah tidak aktif."
+    }
+}
+```
+
 ---
 
 ## Stock Deduction Rule
 
-Stok inventory berkurang saat order berubah menjadi `completed`.
+Stok inventory berubah saat order berubah status:
+
+- `completed` → stok dikurangi (`type=out`)
+- `cancelled` → stok dikembalikan (`type=in`)
 
 ### Rule
 
-- Jangan kurangi stok saat order dibuat.
-- Jangan kurangi stok saat order masih `draft` atau `open`.
+- Jangan kurangi stok saat order `draft` atau `open`.
 - Jangan kurangi stok saat payment dibuat.
-- Jangan kurangi stok untuk order `cancelled`.
-- Deduction harus idempotent: order yang sama tidak boleh mengurangi stok dua kali.
+- Deduction & restoration **idempotent**: sudah ada history dengan `reference_type=order` + `reference_id=order_guid` = skip.
+- `current_stock` hanya berubah lewat `InventoryService::adjustStock()`.
 
-### Basic Calculation
+### Manual Adjustment
 
-Untuk fase awal, setiap `orders.order_items.quantity` mengurangi `product.inventories.current_stock` berdasarkan:
+Gunakan `POST /inventory/adjust` untuk penyesuaian stok manual. Setiap perubahan tercatat di `inventory_history` dengan `reference_type=manual_adjustment`.
 
-```text
-inventory.product_guid = order_items.product_guid
-inventory.id_cabang = user.id_cabang or PUSAT
-deduct_qty = order_items.quantity
-```
-
-Karena satuan awal semua produk adalah `pcs`, belum ada konversi satuan.
-
-### Insufficient Stock Recommendation
-
-Jika stok tidak cukup saat order akan diselesaikan:
+### Insufficient Stock Response
 
 ```json
 {
@@ -387,16 +394,13 @@ Jika stok tidak cukup saat order akan diselesaikan:
         "code": "05",
         "status": "failed",
         "data": {
-            "product": {
-                "guid": "33333333-3333-4333-8333-000000000001",
-                "name": "Nasi Goreng Special"
-            },
+            "product_name": "Nasi Goreng Special",
             "current_stock": 1,
             "required_stock": 2,
             "unit": "pcs"
         },
-        "message_en": "Insufficient stock.",
-        "message_id": "Stok tidak mencukupi."
+        "message_en": "Insufficient stock. Available: 1, requested: 2",
+        "message_id": "Stok tidak mencukupi. Tersedia: 1, diminta: 2"
     }
 }
 ```

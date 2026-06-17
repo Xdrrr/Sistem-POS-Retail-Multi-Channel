@@ -632,6 +632,8 @@ Riwayat mutasi stok disimpan di `product.inventory_history`. Setiap perubahan `c
 | `reference_type` | `order` (pesanan selesai), `manual_adjustment` (admin) |
 | `reference_id` | GUID dari referensi (order_guid) |
 | `created_by` | User yang melakukan mutasi |
+| `user_guid_reff` | GUID user referensi (kasir untuk order, admin untuk manual) |
+| `is_active` | Soft delete flag (default true) |
 
 ### Alur Mutasi Stok
 
@@ -744,4 +746,4 @@ Jika stok tidak cukup, order tetap `completed` tapi item yang tidak cukup stokny
 | Role & Roles | 🟡 | Role list sudah fixed (5 role), tapi otorisasi belum diimplementasi |
 | Shift | ✅ | Migration, model, API (5 endpoint), service, integrasi order, UI monitoring, sidebar nav, navbar pill, seeder demo |
 | Laporan/Report + Export | ✅ | Preview, summary, export CSV async, status, download, dan history tersedia |
-| Inventory History & Stock Movement | 🟡 | Migration ✅, Model ✅, Seeder ✅, API doc ✅, workflow doc ✅. Service & Controller & UI menyusul. |
+| Inventory History & Stock Movement | ✅ | All components implemented: migration, model, seeder, service, API controllers, web controllers, UI pages, docs, order integration. |

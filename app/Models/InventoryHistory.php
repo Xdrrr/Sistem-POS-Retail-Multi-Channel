@@ -21,7 +21,9 @@ class InventoryHistory extends Model
         'reference_type',
         'reference_id',
         'notes',
+        'is_active',
         'created_by',
+        'user_guid_reff',
     ];
 
     public function inventory(): BelongsTo

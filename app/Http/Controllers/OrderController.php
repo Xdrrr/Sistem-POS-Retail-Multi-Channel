@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\Product;
 use App\Models\AuthenticationSession;
 use App\Models\AuthenticationUser;
+use App\Models\InventoryHistory;
 use App\Services\Shifts\ShiftService;
 use App\Traits\Filterable;
 use Illuminate\Http\JsonResponse;
@@ -308,6 +309,12 @@ class OrderController extends Controller
     {
         $order->loadMissing(['shift', 'cashier.detail']);
 
+        $mutations = InventoryHistory::query()
+            ->where('reference_type', 'order')
+            ->where('reference_id', $order->guid)
+            ->where('is_active', true)
+            ->get();
+
         return [
             'guid' => $order->guid,
             'order_number' => $order->order_number,
@@ -353,6 +360,12 @@ class OrderController extends Controller
                 'paid_at' => $payment->paid_at?->toISOString(),
                 'reference_number' => $payment->reference_number,
                 'notes' => $payment->notes,
+            ])->values(),
+            'stock_mutations' => $mutations->map(fn (InventoryHistory $m): array => [
+                'guid' => $m->guid,
+                'product_name' => $m->inventory?->product?->name ?? '-',
+                'type' => $m->type,
+                'qty' => (float) $m->qty,
             ])->values(),
             'created_at' => $order->created_at?->toISOString(),
             'updated_at' => $order->updated_at?->toISOString(),

@@ -315,6 +315,10 @@ const cancelOrder = (order) => {
                             <div>
                                 <span>Paid {{ formatCurrency(order.paid_amount) }}</span>
                                 <strong>{{ formatCurrency(order.total_amount) }}</strong>
+                                <div v-if="order.stock_mutations?.length" class="mutation-info">
+                                    <span class="material-symbols-outlined">inventory</span>
+                                    <span>{{ order.stock_mutations.length }} mutasi stok</span>
+                                </div>
                             </div>
                             <div class="row-actions">
                                 <button class="secondary-action" type="button" @click="openPayment(order)">
@@ -990,6 +994,23 @@ label > span {
 .order-card__footer strong {
     display: block;
     font-size: 18px;
+}
+
+.mutation-info {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #1a237e;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.mutation-info .material-symbols-outlined {
+    font-size: 14px;
 }
 
 .modal-backdrop {

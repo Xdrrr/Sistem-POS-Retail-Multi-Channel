@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuthenticationSession;
 use App\Models\Product;
 use App\Models\ProductInventory;
+use App\Services\Inventory\InventoryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -91,6 +93,7 @@ class InventoryController extends Controller
 
         $validated = $validator->validated();
         $idCabang = $validated['id_cabang'] ?? 'PUSAT';
+        $initialStock = (float) ($validated['current_stock'] ?? 0);
 
         $exists = ProductInventory::query()
             ->where('product_guid', $validated['product_guid'])
@@ -106,10 +109,24 @@ class InventoryController extends Controller
             'product_guid' => $validated['product_guid'],
             'id_cabang' => $idCabang,
             'unit' => $validated['unit'] ?? 'pcs',
-            'current_stock' => $validated['current_stock'] ?? 0,
+            'current_stock' => $initialStock,
             'minimum_stock' => $validated['minimum_stock'] ?? 0,
             'is_active' => $validated['is_active'] ?? true,
         ]);
+
+        if ($initialStock > 0) {
+            $userGuid = $this->authUserGuid($request);
+            $service = app(InventoryService::class);
+            $service->adjustStock(
+                inventory: $inventory,
+                type: 'in',
+                qty: $initialStock,
+                referenceType: 'manual_adjustment',
+                notes: 'add stok',
+                createdBy: $userGuid,
+                userGuidReff: $userGuid,
+            );
+        }
 
         return $this->apiResponse('00', 'success', $this->inventoryData($inventory->load(['product.category', 'product.group'])), 'Inventory created successfully.', 'Inventory berhasil dibuat.', 201);
     }
@@ -142,7 +159,6 @@ class InventoryController extends Controller
             'product_guid' => ['required', 'string', Rule::exists(Product::class, 'guid')],
             'id_cabang' => ['nullable', 'string', 'max:50'],
             'unit' => ['nullable', 'string', 'max:20'],
-            'current_stock' => ['required', 'numeric', 'min:0'],
             'minimum_stock' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -164,16 +180,60 @@ class InventoryController extends Controller
             return $this->apiResponse('02', 'failed', null, 'Inventory already exists for this product and branch.', 'Inventory untuk produk dan cabang ini sudah ada.', 409);
         }
 
+        $oldData = [
+            'product_guid' => $inventory->product_guid,
+            'id_cabang' => $inventory->id_cabang,
+            'unit' => $inventory->unit,
+            'minimum_stock' => $inventory->minimum_stock,
+            'is_active' => $inventory->is_active,
+        ];
+
         $inventory->update([
             'product_guid' => $validated['product_guid'],
             'id_cabang' => $idCabang,
             'unit' => $validated['unit'] ?? 'pcs',
-            'current_stock' => $validated['current_stock'],
             'minimum_stock' => $validated['minimum_stock'] ?? 0,
             'is_active' => $validated['is_active'] ?? $inventory->is_active,
         ]);
 
+        $changes = [];
+        foreach (['id_cabang', 'unit', 'minimum_stock', 'is_active'] as $field) {
+            if ($oldData[$field] != $inventory->{$field}) {
+                $changes[] = "{$field}: {$oldData[$field]} → {$inventory->{$field}}";
+            }
+        }
+
+        if ($changes) {
+            $userGuid = $this->authUserGuid($request);
+            $service = app(InventoryService::class);
+            $service->adjustStock(
+                inventory: $inventory,
+                type: 'adjustment',
+                qty: (float) $inventory->current_stock,
+                referenceType: 'manual_adjustment',
+                notes: 'Update manual: '.implode(', ', $changes),
+                createdBy: $userGuid,
+                userGuidReff: $userGuid,
+            );
+        }
+
         return $this->apiResponse('00', 'success', $this->inventoryData($inventory->refresh()->load(['product.category', 'product.group'])), 'Inventory updated successfully.', 'Inventory berhasil diperbarui.');
+    }
+
+    private function authUserGuid(Request $request): ?string
+    {
+        $apiToken = $request->attributes->get('api_token');
+
+        if (! $apiToken) {
+            return null;
+        }
+
+        return AuthenticationSession::query()
+            ->with('user')
+            ->where('api_token_id', $apiToken->id)
+            ->latest('last_login_at')
+            ->latest('id')
+            ->first()?->user?->guid;
     }
 
     public function destroy(string $guid): JsonResponse
@@ -184,9 +244,13 @@ class InventoryController extends Controller
             return $this->apiResponse('01', 'failed', null, 'Inventory not found.', 'Inventory tidak ditemukan.', 404);
         }
 
-        $inventory->delete();
+        if (! $inventory->is_active) {
+            return $this->apiResponse('02', 'failed', null, 'Inventory is already inactive.', 'Inventory sudah tidak aktif.', 409);
+        }
 
-        return $this->apiResponse('00', 'success', null, 'Inventory deleted successfully.', 'Inventory berhasil dihapus.');
+        $inventory->update(['is_active' => false]);
+
+        return $this->apiResponse('00', 'success', null, 'Inventory deactivated successfully.', 'Inventory berhasil dinonaktifkan.');
     }
 
     private function findInventory(string $guid): ?ProductInventory

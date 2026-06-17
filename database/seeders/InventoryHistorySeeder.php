@@ -78,6 +78,7 @@ class InventoryHistorySeeder extends Seeder
                     'reference_type' => 'manual_adjustment',
                     'reference_id' => null,
                     'notes' => 'Stok awal dari seeder',
+                    'is_active' => true,
                     'created_by' => $user->guid,
                 ]);
 

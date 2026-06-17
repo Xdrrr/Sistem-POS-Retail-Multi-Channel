@@ -60,7 +60,8 @@ API routes are in `routes/api.php`. Because `bootstrap/app.php` sets `apiPrefix:
 Web routes are in `routes/web.php`:
 - `/` dashboard home
 - `/catalog` product catalog management
-- `/inventory` inventory stock management (history at `/inventory/items/{guid}/history`)
+- `/inventory` inventory stock management
+- `/inventory/history` global riwayat mutasi stok (history at `/inventory/items/{guid}/history`)
 - `/orders` web order page
 - `/shifts` and `/shifts/{guid}` shift monitoring
 - `/reports`, `/reports/exports`, `/reports/{type}/preview`, `/reports/{type}/summary`, `/reports/{type}/export`, export status/download routes
@@ -132,11 +133,13 @@ Mencatat setiap perubahan stok (in/out/adjustment) sebagai audit trail.
 | `reference_type` | VARCHAR(50) | nullable | `order`, `manual_adjustment` |
 | `reference_id` | UUID | nullable | GUID referensi (order_guid, dll) |
 | `notes` | TEXT | nullable | Keterangan tambahan |
+| `is_active` | BOOLEAN | true | Soft delete flag |
 | `created_by` | UUID | nullable | FK → `authentication.users.guid` |
+| `user_guid_reff` | UUID | nullable | FK → `authentication.users.guid`, GUID user referensi (kasir untuk order, admin untuk manual) |
 | `created_at` | TIMESTAMP | | |
 | `updated_at` | TIMESTAMP | | |
 
-Index: `inventory_id`, `product_guid`, `id_cabang`, `reference_type`, `reference_id`, `created_at`.
+Index: `inventory_id`, `product_guid`, `id_cabang`, `reference_type`, `reference_id`, `is_active`, `created_at`, `user_guid_reff`.
 
 ### Rules
 
@@ -171,13 +174,16 @@ Index: `inventory_id`, `product_guid`, `id_cabang`, `reference_type`, `reference
 
 - `database/migrations/2026_06_05_000001_create_product_inventory_table.php` — migration `product.inventories`
 - `database/migrations/2026_06_06_000001_create_product_inventory_history_table.php` — migration `product.inventory_history`
+- `database/migrations/2026_06_06_000002_add_is_active_to_inventory_history.php` — add `is_active`
+- `database/migrations/2026_06_06_000003_add_user_guid_reff_to_inventory_history.php` — add `user_guid_reff`
 - `database/seeders/InventoryHistorySeeder.php` — seeder stok awal
 - `app/Models/ProductInventory.php` — model `product.inventories`
 - `app/Models/InventoryHistory.php` — model `product.inventory_history`
 - `app/Http/Controllers/InventoryController.php` — API CRUD
 - `app/Http/Controllers/InventoryPageController.php` — Web/Inertia UI
-- `app/Http/Controllers/InventoryAdjustmentController.php` — API adjustment endpoint
+- `app/Http/Controllers/InventoryAdjustmentController.php` — API adjustment & history endpoint
 - `app/Services/Inventory/InventoryService.php` — business logic
+- `app/Services/Inventory/InsufficientStockException.php` — custom exception
 - `resources/js/Pages/Inventory/Index.vue` — Web/Inertia UI
 - `resources/js/Pages/Inventory/History.vue` — History page
 
@@ -193,6 +199,8 @@ Index: `inventory_id`, `product_guid`, `id_cabang`, `reference_type`, `reference
 | DELETE | `/inventory/{guid}` | `InventoryController@destroy` | Delete inventory |
 | POST | `/inventory/adjust` | `InventoryAdjustmentController@adjust` | Adjust stock (in/out/adjustment) |
 | POST | `/inventory/history` | `InventoryAdjustmentController@history` | List history of an inventory |
+| POST | `/inventory/adjust` | `InventoryAdjustmentController@adjust` | Adjust stock (in/out/adjustment) |
+| POST | `/inventory/history` | `InventoryAdjustmentController@history` | List history of an inventory |
 
 #### Web
 | Method | URI | Controller@Method | Notes |
@@ -201,8 +209,9 @@ Index: `inventory_id`, `product_guid`, `id_cabang`, `reference_type`, `reference
 | POST | `/inventory/items` | `InventoryPageController@store` | Create inventory |
 | PUT | `/inventory/items/{guid}` | `InventoryPageController@update` | Update (no stock) |
 | DELETE | `/inventory/items/{guid}` | `InventoryPageController@destroy` | Delete |
-| POST | `/inventory/items/{guid}/adjust` | `InventoryPageController@adjust` | Adjust stock |
-| GET | `/inventory/items/{guid}/history` | `InventoryPageController@history` | Riwayat mutasi |
+| POST | `/inventory/items/adjust` | `InventoryPageController@adjust` | Adjust stock (in/out) |
+| GET | `/inventory/history` | `InventoryPageController@historyIndex` | Riwayat global dengan filter |
+| GET | `/inventory/items/{guid}/history` | `InventoryPageController@history` | Riwayat mutasi per item |
 
 ## Orders
 Order tables:
@@ -215,18 +224,24 @@ Important fields:
 - `orders.orders.payment_status`: `unpaid`, `partial`, `paid`, `refunded`
 - `orders.orders.shift_id` and `orders.orders.user_id` exist from shift integration.
 
+Stock mutation reference on order:
+- Setiap order yang completed/cancelled memiliki `stock_mutations` di data response (dari `InventoryHistory` dengan `reference_type=order`).
+- Menampilkan GUID mutasi dan jumlah item yang terpengaruh.
+
 Order creation paths:
 - Tablet API: `App\Http\Controllers\OrderController@store`
 - Dashboard web: `App\Http\Controllers\OrderPageController@store`
 
 Order completion path:
-- Dashboard web currently uses `App\Http\Controllers\OrderPageController@complete`
+- Dashboard web: `App\Http\Controllers\OrderPageController@complete` — deducts stock via `InventoryService::adjustStock()`
+- Dashboard web: `App\Http\Controllers\OrderPageController@cancel` — restores stock via `InventoryService::adjustStock()`
 - Future API completion/status update must also call the same inventory deduction service.
 
 Inventory rule:
 - Deduct stock only when order status transitions to `completed`.
+- Restore stock when order status transitions to `cancelled`.
 - Do not deduct stock on `draft`, `open`, payment creation, or order creation.
-- Cancelled orders must not deduct stock.
+- Idempotent: sudah ada history dengan `reference_type=order` + `reference_id=order_guid` = skip.
 
 ## Shifts
 Shift is already implemented, not merely planned.

@@ -43,6 +43,9 @@ Route::middleware(EnsureWebAuthenticated::class)->group(function (): void {
     Route::post('/inventory/items', [InventoryPageController::class, 'store'])->name('inventory.store');
     Route::put('/inventory/items/{guid}', [InventoryPageController::class, 'update'])->name('inventory.update');
     Route::delete('/inventory/items/{guid}', [InventoryPageController::class, 'destroy'])->name('inventory.destroy');
+    Route::post('/inventory/items/adjust', [InventoryPageController::class, 'adjust'])->name('inventory.adjust');
+    Route::get('/inventory/history', [InventoryPageController::class, 'historyIndex'])->name('inventory.history.index');
+    Route::get('/inventory/items/{guid}/history', [InventoryPageController::class, 'history'])->name('inventory.history.show');
 
     Route::get('/orders', [OrderPageController::class, 'index'])->name('orders.index');
     Route::post('/orders/create', [OrderPageController::class, 'store'])->name('orders.store');

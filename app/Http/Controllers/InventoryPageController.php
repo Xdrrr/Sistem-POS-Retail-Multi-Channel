@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuthenticationUser;
+use App\Models\InventoryHistory;
 use App\Models\Product;
 use App\Models\ProductInventory;
+use App\Services\Inventory\InventoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -47,6 +50,7 @@ class InventoryPageController extends Controller
     {
         $validated = $request->validate($this->rules());
         $idCabang = $validated['id_cabang'] ?? 'PUSAT';
+        $initialStock = (float) ($validated['current_stock'] ?? 0);
 
         $exists = ProductInventory::query()
             ->where('product_guid', $validated['product_guid'])
@@ -59,15 +63,28 @@ class InventoryPageController extends Controller
             ])->withInput();
         }
 
-        ProductInventory::query()->create([
+        $inventory = ProductInventory::query()->create([
             'guid' => (string) Str::uuid(),
             'product_guid' => $validated['product_guid'],
             'id_cabang' => $idCabang,
             'unit' => $validated['unit'] ?? 'pcs',
-            'current_stock' => $validated['current_stock'] ?? 0,
+            'current_stock' => $initialStock,
             'minimum_stock' => $validated['minimum_stock'] ?? 0,
             'is_active' => $validated['is_active'] ?? true,
         ]);
+
+        if ($initialStock > 0) {
+            $service = app(InventoryService::class);
+            $service->adjustStock(
+                inventory: $inventory,
+                type: 'in',
+                qty: $initialStock,
+                referenceType: 'manual_adjustment',
+                notes: 'add stok',
+                createdBy: $this->authUserGuid($request),
+                userGuidReff: $this->authUserGuid($request),
+            );
+        }
 
         return redirect()->route('inventory.index');
     }
@@ -94,7 +111,6 @@ class InventoryPageController extends Controller
             'product_guid' => $validated['product_guid'],
             'id_cabang' => $idCabang,
             'unit' => $validated['unit'] ?? 'pcs',
-            'current_stock' => $validated['current_stock'] ?? 0,
             'minimum_stock' => $validated['minimum_stock'] ?? 0,
             'is_active' => $validated['is_active'] ?? false,
         ]);
@@ -107,6 +123,180 @@ class InventoryPageController extends Controller
         ProductInventory::query()->where('guid', $guid)->firstOrFail()->delete();
 
         return redirect()->route('inventory.index');
+    }
+
+    public function adjust(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'product_guid' => ['required', 'string', Rule::exists(Product::class, 'guid')],
+            'type' => ['required', 'string', 'in:in,out'],
+            'qty' => ['required', 'numeric', 'min:0.01'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $inventory = ProductInventory::query()
+            ->where('product_guid', $validated['product_guid'])
+            ->where('id_cabang', 'PUSAT')
+            ->first();
+
+        if (! $inventory) {
+            return back()->withErrors(['product_guid' => 'Inventory untuk produk ini belum ada.'])->withInput();
+        }
+
+        $userGuid = $this->authUserGuid($request);
+        $service = app(InventoryService::class);
+        $service->adjustStock(
+            inventory: $inventory,
+            type: $validated['type'],
+            qty: (float) $validated['qty'],
+            referenceType: 'manual_adjustment',
+            notes: $validated['notes'] ?? ($validated['type'] === 'in' ? 'add stok' : 'kurang stok'),
+            createdBy: $userGuid,
+            userGuidReff: $userGuid,
+        );
+
+        $msg = $validated['type'] === 'in' ? 'Stok berhasil ditambahkan.' : 'Stok berhasil dikurangi.';
+
+        return redirect()->route('inventory.index')->with('success', $msg);
+    }
+
+    private function authUserGuid(Request $request): ?string
+    {
+        $userId = $request->session()->get('web_auth_user_id');
+
+        if (! $userId) {
+            return null;
+        }
+
+        return AuthenticationUser::query()->where('id', $userId)->value('guid');
+    }
+
+    public function historyIndex(Request $request): Response
+    {
+        $productGuid = $request->input('filter.product_guid');
+        $type = $request->input('filter.type');
+        $referenceType = $request->input('filter.reference_type');
+        $search = $request->input('filter.search');
+        $fromDate = $request->input('filter.from_date');
+        $toDate = $request->input('filter.to_date');
+        $limit = (int) ($request->input('limit', 20));
+        $sort = strtoupper($request->input('sort', 'DESC'));
+
+        $query = InventoryHistory::query()
+            ->with(['inventory.product.category', 'inventory.product.group', 'createdBy.detail']);
+
+        if ($productGuid) {
+            $query->where('product_guid', $productGuid);
+        }
+
+        if ($type) {
+            $query->where('type', $type);
+        }
+
+        if ($referenceType) {
+            $query->where('reference_type', $referenceType);
+        }
+
+        if ($search) {
+            $query->whereHas('inventory.product', fn ($q) => $q->where('name', 'ilike', "%{$search}%"));
+        }
+
+        if ($fromDate) {
+            $query->whereDate('created_at', '>=', $fromDate);
+        }
+
+        if ($toDate) {
+            $query->whereDate('created_at', '<=', $toDate);
+        }
+
+        $history = $query->orderBy('created_at', $sort)
+            ->paginate(min(max($limit, 1), 100))
+            ->through(fn (InventoryHistory $record): array => [
+                'guid' => $record->guid,
+                'inventory_guid' => $record->inventory_id,
+                'product_guid' => $record->product_guid,
+                'product_name' => $record->inventory?->product?->name ?? '-',
+                'category_name' => $record->inventory?->product?->category?->name,
+                'group_name' => $record->inventory?->product?->group?->name,
+                'id_cabang' => $record->id_cabang,
+                'type' => $record->type,
+                'qty' => (float) $record->qty,
+                'stock_before' => (float) $record->stock_before,
+                'stock_after' => (float) $record->stock_after,
+                'reference_type' => $record->reference_type,
+                'reference_id' => $record->reference_id,
+                'notes' => $record->notes,
+                'created_by' => $record->createdBy?->detail?->full_name
+                    ?? $record->createdBy?->username
+                    ?? '-',
+                'created_at' => $record->created_at?->toISOString(),
+            ]);
+
+        $products = Product::query()
+            ->whereHas('inventories')
+            ->orderBy('name')
+            ->get(['guid', 'name']);
+
+        return Inertia::render('Inventory/History', [
+            'title' => 'Riwayat Stok',
+            'server_time' => now()->format('l, d F Y at h:i A'),
+            'history' => $history->items(),
+            'pagination' => [
+                'total' => $history->total(),
+                'per_page' => $history->perPage(),
+                'current_page' => $history->currentPage(),
+                'last_page' => $history->lastPage(),
+            ],
+            'products' => $products->map(fn (Product $p): array => [
+                'guid' => $p->guid,
+                'name' => $p->name,
+            ]),
+            'filters' => [
+                'product_guid' => $productGuid ?? '',
+                'type' => $type ?? '',
+                'reference_type' => $referenceType ?? '',
+                'search' => $search ?? '',
+                'from_date' => $fromDate ?? '',
+                'to_date' => $toDate ?? '',
+                'limit' => $limit,
+                'sort' => $sort,
+            ],
+        ]);
+    }
+
+    public function history(string $guid): Response
+    {
+        $inventory = ProductInventory::query()
+            ->with('product.category', 'product.group')
+            ->where('guid', $guid)
+            ->firstOrFail();
+
+        $history = InventoryHistory::query()
+            ->with('createdBy.detail')
+            ->where('inventory_id', $guid)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(fn (InventoryHistory $record): array => [
+                'guid' => $record->guid,
+                'type' => $record->type,
+                'qty' => (float) $record->qty,
+                'stock_before' => (float) $record->stock_before,
+                'stock_after' => (float) $record->stock_after,
+                'reference_type' => $record->reference_type,
+                'reference_id' => $record->reference_id,
+                'notes' => $record->notes,
+                'created_by' => $record->createdBy?->detail?->full_name
+                    ?? $record->createdBy?->username
+                    ?? '-',
+                'created_at' => $record->created_at?->toISOString(),
+            ]);
+
+        return Inertia::render('Inventory/History', [
+            'title' => 'Riwayat Stok',
+            'server_time' => now()->format('l, d F Y at h:i A'),
+            'inventory' => $this->inventoryData($inventory),
+            'history' => $history,
+        ]);
     }
 
     private function rules(?ProductInventory $inventory = null): array
