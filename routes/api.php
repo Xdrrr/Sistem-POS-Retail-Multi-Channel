@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthenticationController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
@@ -45,6 +46,13 @@ Route::middleware(EnsureApiToken::class)->group(function (): void {
     Route::get('/products/{guid}', [ProductController::class, 'show']);
     Route::put('/products/update', [ProductController::class, 'update']);
     Route::delete('/products/{guid}', [ProductController::class, 'destroy']);
+
+    // Inventory
+    Route::post('/inventory', [InventoryController::class, 'index']);
+    Route::post('/inventory/store', [InventoryController::class, 'store']);
+    Route::get('/inventory/{guid}', [InventoryController::class, 'show']);
+    Route::put('/inventory/update', [InventoryController::class, 'update']);
+    Route::delete('/inventory/{guid}', [InventoryController::class, 'destroy']);
 
     // Orders
     Route::post('/orders', [OrderController::class, 'index']);

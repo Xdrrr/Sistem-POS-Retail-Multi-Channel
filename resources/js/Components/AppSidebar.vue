@@ -10,6 +10,7 @@ const navItems = [
     { label: 'Reports', icon: 'bar_chart', href: '/reports' },
     { label: 'History <br> Export', icon: 'history', href: '/reports/exports' },
     { label: 'Products', icon: 'inventory_2', href: '/catalog' },
+    { label: 'Inventory', icon: 'warehouse', href: '/inventory' },
     // { label: 'Sync Center', icon: 'sync', href: '#' },
     { label: 'Settings', icon: 'settings', href: '/settings/profile' },
 ];

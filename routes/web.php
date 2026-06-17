@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthPageController;
 use App\Http\Controllers\CatalogPageController;
 use App\Http\Controllers\HomePageController;
+use App\Http\Controllers\InventoryPageController;
 use App\Http\Controllers\OrderPageController;
 use App\Http\Controllers\ProfilePageController;
 use App\Http\Controllers\ReportController;
@@ -37,6 +38,11 @@ Route::middleware(EnsureWebAuthenticated::class)->group(function (): void {
     Route::post('/catalog/products', [CatalogPageController::class, 'storeProduct'])->name('catalog.products.store');
     Route::put('/catalog/products/{guid}', [CatalogPageController::class, 'updateProduct'])->name('catalog.products.update');
     Route::delete('/catalog/products/{guid}', [CatalogPageController::class, 'destroyProduct'])->name('catalog.products.destroy');
+
+    Route::get('/inventory', [InventoryPageController::class, 'index'])->name('inventory.index');
+    Route::post('/inventory/items', [InventoryPageController::class, 'store'])->name('inventory.store');
+    Route::put('/inventory/items/{guid}', [InventoryPageController::class, 'update'])->name('inventory.update');
+    Route::delete('/inventory/items/{guid}', [InventoryPageController::class, 'destroy'])->name('inventory.destroy');
 
     Route::get('/orders', [OrderPageController::class, 'index'])->name('orders.index');
     Route::post('/orders/create', [OrderPageController::class, 'store'])->name('orders.store');

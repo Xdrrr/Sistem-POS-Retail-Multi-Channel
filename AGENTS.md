@@ -1,587 +1,241 @@
-# Project Memory — POS SBY WIT (Boilerplate POS Backend)
+# Project Memory - POS SBY WIT (Boilerplate POS Backend)
 
 ## Stack
-- Laravel 13 + PHP 8.3 + Inertia.js 3 + PostgreSQL
-- Development environment: Laragon
+- Laravel 13, PHP 8.3, Inertia.js 3, Vue, PostgreSQL.
+- Development environment: Laragon.
+- Project has 2 interfaces sharing the same backend:
+  - Dashboard Web via Inertia pages for owner/manager/admin monitoring.
+  - Tablet POS App via API endpoints for cashier operations.
 
-## Arsitektur Aplikasi
-Project ini terdiri dari **2 interface yang sharing 1 backend**:
+## Actual Database Schemas
+- `public.users`: default Laravel users table. This table now has `id_cabang` with default value `PUSAT`.
+- `authentication.*`: POS authentication domain.
+  - `authentication.roles`
+  - `authentication.users`
+  - `authentication.user_details`
+  - `authentication.api_clients`
+  - `authentication.api_tokens`
+  - `authentication.authentications`
+- `product.*`: catalog and inventory domain.
+  - `product.categories`
+  - `product.groups`
+  - `product.products`
+  - `product.inventories`
+   - `product.inventory_history`
+- `orders.*`: order, payment, shift domain.
+  - `orders.orders`
+  - `orders.order_items`
+  - `orders.payments`
+  - `orders.shifts`
+- `reports.*` is not a schema. Report export metadata uses `report_exports` model/table as implemented.
 
-| Interface | Target User | Akses | Fungsi |
+## Roles
+Fixed role list:
+- `Superadmin`: full dashboard and API access.
+- `Owner`: dashboard reports/KPI and API access.
+- `Manager`: dashboard reports, shift, catalog and API access.
+- `Cashier`: no dashboard web access, full tablet POS API access.
+- `Users`: default/legacy fallback, no dashboard and no API access.
+
+Dashboard authorization:
+- Web/Inertia pages are for `Superadmin`, `Owner`, and `Manager`.
+- `Cashier` must not access dashboard web pages.
+
+API authorization:
+- API endpoints use `EnsureApiToken`.
+- All roles except `Users` can access API endpoints.
+
+## Actual Routes
+API routes are in `routes/api.php`. Because `bootstrap/app.php` sets `apiPrefix: ''`, these routes are mounted without `/api`:
+- Token: `/token/auth`, `/token/refresh`
+- Authentication: `/authentication/login`, `/authentication/user/register`
+- Categories: `/categories`, `/categories/store`, `/categories/{guid}`, `/categories/update`, delete `/categories/{guid}`
+- Groups: `/groups`, `/groups/store`, `/groups/{guid}`, `/groups/update`, delete `/groups/{guid}`
+- Products: `/products`, `/products/store`, `/products/{guid}`, `/products/update`, delete `/products/{guid}`
+- Inventory: `/inventory`, `/inventory/store`, `/inventory/{guid}`, `/inventory/update`, delete `/inventory/{guid}`, `/inventory/adjust`, `/inventory/history`
+- Orders: `/orders`, `/orders/store`, `/orders/{guid}`, `/orders/update`, delete `/orders/{guid}`
+- Payments: `/payments`, `/payments/store`, `/payments/{guid}`
+- Shifts: `/shift/store`, `/shift/close`, `/shift/active`, `/shift/{guid}`, `/shift`
+
+Web routes are in `routes/web.php`:
+- `/` dashboard home
+- `/catalog` product catalog management
+- `/inventory` inventory stock management (history at `/inventory/items/{guid}/history`)
+- `/orders` web order page
+- `/shifts` and `/shifts/{guid}` shift monitoring
+- `/reports`, `/reports/exports`, `/reports/{type}/preview`, `/reports/{type}/summary`, `/reports/{type}/export`, export status/download routes
+- `/settings/profile`
+
+## Frontend Responsive Rules
+- Global dashboard responsive behavior lives in `resources/css/app.css`.
+- New pages should use the existing wrapper pattern: `AppSidebar`, `AppNavbar`, `.dashboard-shell`, and `.content`.
+- Do not lock new pages with `overflow: hidden`, `height: 100vh`, or `height: calc(100vh...)` without clear mobile override.
+- Tables or dense lists must use horizontal scroll on mobile (`.table-wrap` or `.table-scroll` pattern).
+- Modals must be scrollable on mobile.
+- Local responsive CSS is allowed only for page-specific layout needs.
+
+## Catalog
+Catalog tables:
+- `product.categories`
+- `product.groups`
+- `product.products`
+
+Catalog image rule:
+- Seeder images live in `storage/app/public/catalog/seed/{categories|groups|products}/`.
+- DB path format is `catalog/seed/{folder}/{Str::slug(name)}.png`.
+- When adding/changing `CatalogSeeder` items, also add/update the PNG using the matching slug to avoid broken images.
+
+Product model:
+- `App\Models\Product`
+- Table: `product.products`
+- Relations: `category`, `group`, `inventories`
+
+## Inventory
+
+Inventory is stored in the `product` schema, not a separate schema.
+
+### Tables
+
+#### `product.inventories` — Stok Saat Ini
+
+Stok tersedia per produk per cabang. `current_stock` di-update real-time setiap ada mutasi stok.
+
+| Column | Type | Default | Notes |
 |---|---|---|---|
-| **Dashboard Web** | Owner/Manager/Admin | Browser via Inertia.js | Monitoring data, laporan, KPI |
-| **Tablet POS App** | Kasir/Karyawan | API endpoints | Transaksi, order, payment |
+| `id` | BIGINT | | PK |
+| `guid` | UUID | | Unique |
+| `product_guid` | UUID | | FK → `product.products.guid`, cascade on delete |
+| `id_cabang` | VARCHAR(50) | `PUSAT` | |
+| `unit` | VARCHAR(20) | `pcs` | |
+| `current_stock` | DECIMAL(15,2) | 0 | Diupdate real-time via InventoryService |
+| `minimum_stock` | DECIMAL(15,2) | 0 | |
+| `is_active` | BOOLEAN | true | |
+| timestamps | | | |
 
-### Dashboard Web (Project Ini)
-- Diakses via Inertia page (Vue)
-- Sidebar → link ke halaman order (`/orders`) untuk tambah order via web
-- Khusus untuk **role non-karyawan** (owner/manager) — melihat data & monitoring sistem
-- Report, grafik, KPI real-time
+Unique: `(product_guid, id_cabang)`.
 
-### Frontend Responsive System
-- Responsive utama dashboard web dikelola secara global di `resources/css/app.css`.
-- Global responsive mengatur scroll mobile/tablet untuk `html`, `body`, `#app`, `.dashboard-shell`, dan `.content`.
-- Jangan mengunci page baru dengan `overflow: hidden`, `height: 100vh`, atau `height: calc(100vh...)` tanpa override mobile yang jelas, karena bisa membuat halaman HP tidak bisa scroll.
-- Untuk page baru, gunakan pola wrapper yang sama: `AppSidebar`, `AppNavbar`, `.dashboard-shell`, dan `.content`, lalu biarkan responsive dasar mengikuti `resources/css/app.css`.
-- Table atau daftar dengan kolom banyak harus memakai horizontal scroll (`.table-wrap` / `.table-scroll`) di mobile, bukan memaksa semua kolom masuk viewport.
-- Modal di mobile harus bisa scroll; jangan membuat modal fixed-height tanpa overflow yang bisa digulir.
-- Override responsive lokal di file Vue hanya boleh untuk kebutuhan spesifik komponen/page; aturan scroll, grid satu kolom, table overflow, dan modal scroll tetap bersumber dari global CSS.
+#### `product.inventory_history` — Riwayat Mutasi Stok
 
-### Tablet POS
-- Tidak ada di repo ini (app terpisah)
-- Konsumsi API backend yang sama
-- API route sudah lengkap: `/api/orders/store`, `/api/payments/store`, dll.
+Mencatat setiap perubahan stok (in/out/adjustment) sebagai audit trail.
 
-## Role User (Fixed List)
-
-| Role | Target User | Akses Dashboard | Akses API |
+| Column | Type | Default | Notes |
 |---|---|---|---|
-| **Superadmin** | Developer/IT | ✅ Full | ✅ Full |
-| **Owner** | Pemilik usaha | ✅ Semua laporan & KPI | ✅ |
-| **Manager** | Pengelola operasional | ✅ Laporan, shift, katalog | ✅ |
-| **Cashier** | Kasir/karyawan | ❌ Tidak | ✅ Full (tablet POS) |
-| **Users** | (default/legacy) | ❌ | ❌ |
+| `id` | BIGINT | | PK |
+| `guid` | UUID | | Unique |
+| `inventory_id` | UUID | | FK → `product.inventories.guid` |
+| `product_guid` | UUID | | Denormalisasi dari inventory |
+| `id_cabang` | VARCHAR(50) | | Denormalisasi dari inventory |
+| `type` | ENUM('in','out','adjustment') | | `in` = stok masuk, `out` = stok keluar, `adjustment` = penyesuaian |
+| `qty` | DECIMAL(15,2) | | Selalu positif; arah ditentukan oleh `type` |
+| `stock_before` | DECIMAL(15,2) | | Stok sebelum mutasi |
+| `stock_after` | DECIMAL(15,2) | | Stok setelah mutasi |
+| `reference_type` | VARCHAR(50) | nullable | `order`, `manual_adjustment` |
+| `reference_id` | UUID | nullable | GUID referensi (order_guid, dll) |
+| `notes` | TEXT | nullable | Keterangan tambahan |
+| `created_by` | UUID | nullable | FK → `authentication.users.guid` |
+| `created_at` | TIMESTAMP | | |
+| `updated_at` | TIMESTAMP | | |
 
-### Catatan
-- `Users` adalah role default sistem (is_default = true) — digunakan sebagai fallback
-- `Cashier` adalah satu-satunya role yang TIDAK bisa akses dashboard web
-- Otorisasi dashboard: `Superadmin`, `Owner`, `Manager` → boleh akses Inertia pages
-- Otorisasi API: semua role kecuali `Users` boleh akses API endpoints
+Index: `inventory_id`, `product_guid`, `id_cabang`, `reference_type`, `reference_id`, `created_at`.
 
-## Data Available for Reports
+### Rules
 
-### Sales Report (Laporan Penjualan)
-- **Table:** `orders.orders`
-- **Fields:** order_number, customer_name, customer_phone, table_number, order_type (dine_in/takeaway/delivery), status (draft/open/completed/cancelled), payment_status (unpaid/partial/paid/refunded), subtotal, discount_amount, tax_amount, total_amount, ordered_at, notes
+- `id_cabang` comes from branch code convention on `public.users.id_cabang`.
+- Current default branch is `PUSAT`.
+- Current default unit for all seeded restaurant POS stock is `pcs`.
+- `CatalogSeeder` creates one inventory row per product with `id_cabang = PUSAT`, `unit = pcs`, `current_stock = 0`, and `minimum_stock = 0`.
+- Inventory stock must be reduced when an order becomes `completed`, not when the order is merely created.
+- Stock deduction must be idempotent: completing the same order twice cannot reduce stock twice. Deduct hanya sekali via `InventoryService::adjustStock()`.
+- Setiap perubahan `current_stock` WAJIB melalui `InventoryService::adjustStock()` yang mencatat history.
+- `current_stock` di `product.inventories` tetap di-update real-time (bukan derived dari history).
+- Cancelled orders must not deduct stock.
 
-### Payment Report (Laporan Pembayaran)
-- **Table:** `orders.payments`
-- **Fields:** payment_number, method (cash/debit_card/credit_card/qris/transfer/e_wallet), status (pending/paid/failed/refunded), amount, paid_at, reference_number, notes
+### Sumber Mutasi Stok
 
-### Product Report (Laporan Produk)
-- **Table:** `orders.order_items` + `product.products`
-- **Fields:** product_name, quantity, unit_price, discount_amount, subtotal, notes
-- **Related:** `product.categories` (name, description), `product.groups` (name, description)
-
-### Financial Report (Laporan Keuangan)
-- **From orders.orders:** subtotal, discount_amount, tax_amount, total_amount per time period
-
-### Customer Report
-- **From orders.orders:** customer_name, customer_phone, order count, total spent
-
-### Order Status Report
-- **From orders.orders:** breakdown by status and payment_status
-
-### Catalog Data
-- **Tables:** `product.products`, `product.categories`, `product.groups`
-- **Fields:** name, price, is_active, description
-- Seeder catalog wajib menjaga image terkait dengan data seeder. Dummy image seed disimpan di `storage/app/public/catalog/seed/{categories|groups|products}/` dan path DB memakai format `catalog/seed/{folder}/{Str::slug(name)}.png`.
-- Jika menambah/mengubah item di `CatalogSeeder`, tambahkan/update PNG dengan slug nama yang sama agar data seed tidak menghasilkan broken image.
-
-### Pre-computed KPIs (HomePageController)
-- sales_total, cash_total, digital_total, transactions_today, active_shift, pending_payments, completed_orders, hourly_sales, recent_orders
-
-## Report Filter Design
-
-### Filter per Report
-
-| Report | Filter | Tipe Input | Kolom DB |
-|---|---|---|---|
-| **Semua (kecuali Katalog)** | Periode Tanggal | Date Range | `ordered_at` / `paid_at` |
-| **Lap. Penjualan** | Status Order | Multi-select | `status` |
-| | Tipe Pesanan | Multi-select | `order_type` |
-| | Status Pembayaran | Multi-select | `payment_status` |
-| | Nama Pelanggan | Text search | `customer_name`, `customer_phone` |
-| **Lap. Pembayaran** | Metode Pembayaran | Multi-select | `method` |
-| | Status Pembayaran | Multi-select | `status` |
-| **Lap. Produk** | Kategori | Multi-select | `product.categories.guid` |
-| | Grup | Multi-select | `product.groups.guid` |
-| | Nama Produk | Text search | `product.name` |
-| **Lap. Keuangan** | Status Order | Multi-select | `status` |
-| | Status Pembayaran | Multi-select | `payment_status` |
-| **Lap. Customer** | Nama Customer | Text search | `customer_name` |
-| | No. Telepon | Text | `customer_phone` |
-| | Min. Transaksi | Number | COUNT orders |
-| | Min. Total Belanja | Number | SUM total_amount |
-| **Lap. Status Order** | Status Order | Multi-select | `status` |
-| | Status Pembayaran | Multi-select | `payment_status` |
-| **Lap. Katalog** | Kategori | Multi-select | `category_guid` |
-| | Grup | Multi-select | `group_guid` |
-| | Status Produk | Single-select | `is_active` |
-
-### Filter Pattern (Set-True)
-Filter menggunakan prefix `set_` sebagai boolean flag:
-
-```json
-{
-  "filter": {
-    "set_guid": true,
-    "guid": "b83dee8f-4415-4abf-b94f-9bcf4054f150",
-    "set_category_id": false,
-    "category_id": 1,
-    "set_group_id": false,
-    "group_id": 2
-  },
-  "limit": 20,
-  "page": 1,
-  "order": "name",
-  "sort": "ASC"
-}
-```
-
-- `set_{field}` = `true` → filter aktif, query WHERE pakai nilai `{field}`
-- `set_{field}` = `false` → filter tidak dipakai (ignore)
-- Semua endpoint list API wajib memakai payload standar `{ "filter": { "set_{field}": boolean, "{field}": value }, "limit": 20, "page": 1, "order": "...", "sort": "ASC|DESC" }`; jangan menaruh field filter langsung di root payload.
-- Untuk CRUD/list sederhana tetap boleh memakai `app/Traits/Filterable.php` method `applyFilter()`
-- Untuk report besar, buat filter khusus di service report; jangan bergantung pada `Filterable` karena report butuh date range, multi-select, search `ILIKE`, aggregate `HAVING`, dan whitelist order column
-
-### Catatan
-- Filter periode tanggal: semua report kecuali **Laporan Katalog** (data master statis)
-- Kolom yg dipakai untuk filter tanggal:
-  - `orders.orders.ordered_at` → Penjualan, Produk, Keuangan, Customer, Status Order
-  - `orders.payments.paid_at` → Pembayaran
-- Katalog pakai filter: Status (active/inactive), Kategori, Grup saja
-
-### Report Module Design
-
-#### Struktur yang disarankan
-- `app/Http/Controllers/ReportPageController.php` → render halaman Inertia report
-- `app/Http/Controllers/ReportController.php` → endpoint JSON report/export via web route `/reports/*`
-- `app/Services/Reports/SalesReportQuery.php`
-- `app/Services/Reports/PaymentReportQuery.php`
-- `app/Services/Reports/ProductReportQuery.php`
-- `app/Services/Reports/FinancialReportQuery.php`
-- `app/Services/Reports/CustomerReportQuery.php`
-- `app/Services/Reports/OrderStatusReportQuery.php`
-- `app/Services/Reports/CatalogReportQuery.php`
-- `app/Jobs/ExportReportJob.php`
-- `app/Models/ReportExport.php` atau table metadata export sejenis untuk tracking status file
-
-#### Endpoint Report (tanpa prefix `/api`)
-| Method | Endpoint | Fungsi |
+| Arah | Sumber | `reference_type` |
 |---|---|---|
-| `GET` | `/reports` | Halaman Inertia report |
-| `POST` | `/reports/{type}/preview` | Preview/list data report dengan filter dan pagination |
-| `POST` | `/reports/{type}/summary` | Agregat/KPI ringkas untuk report |
-| `POST` | `/reports/{type}/export` | Buat job export XLSX/CSV |
-| `GET` | `/reports/exports/{guid}` | Cek status export: queued/processing/done/failed |
-| `GET` | `/reports/exports/{guid}/download` | Download file hasil export |
+| `out` | Order completed | `order` |
+| `out` | Manual adjustment (admin kurangi) | `manual_adjustment` |
+| `in` | Manual adjustment (admin tambah) | `manual_adjustment` |
 
-#### Pattern Query
-- Controller hanya validasi request dan memanggil service query
-- Service query menyediakan method `baseQuery()`, `applyFilters()`, `preview()`, `summary()`, dan `exportRows()`
-- Preview/page view menggunakan `paginate()` atau limit kecil
-- Export menggunakan streaming query, bukan mengambil semua data ke memory
-- Query agregat/KPI dihitung langsung di SQL dengan `SUM`, `COUNT`, `GROUP BY`, bukan `->get()->sum()` di collection
-- Whitelist kolom sorting dengan map, jangan langsung `orderBy($request->order)`
+### Service Layer
 
-### Query Optimization
+- `app/Services/Inventory/InventoryService.php` — method `adjustStock(inventory, type, qty, reference_type, reference_id, notes, created_by)`:
+  1. Validasi stok cukup untuk tipe `out`
+  2. Hitung `stock_before` / `stock_after`
+  3. Update `current_stock` di `product.inventories`
+  4. Simpan record ke `inventory_history`
+  5. Return history record
 
-#### Index Strategy (PostgreSQL)
-```sql
--- WAJIB: untuk range query tanggal
-CREATE INDEX idx_orders_ordered_at ON orders.orders(ordered_at);
-CREATE INDEX idx_payments_paid_at ON orders.payments(paid_at);
+### Actual inventory files
 
--- WAJIB: untuk filter status
-CREATE INDEX idx_orders_status ON orders.orders(status);
-CREATE INDEX idx_orders_payment_status ON orders.orders(payment_status);
-CREATE INDEX idx_payments_method ON orders.payments(method);
-CREATE INDEX idx_payments_status ON orders.payments(status);
+- `database/migrations/2026_06_05_000001_create_product_inventory_table.php` — migration `product.inventories`
+- `database/migrations/2026_06_06_000001_create_product_inventory_history_table.php` — migration `product.inventory_history`
+- `database/seeders/InventoryHistorySeeder.php` — seeder stok awal
+- `app/Models/ProductInventory.php` — model `product.inventories`
+- `app/Models/InventoryHistory.php` — model `product.inventory_history`
+- `app/Http/Controllers/InventoryController.php` — API CRUD
+- `app/Http/Controllers/InventoryPageController.php` — Web/Inertia UI
+- `app/Http/Controllers/InventoryAdjustmentController.php` — API adjustment endpoint
+- `app/Services/Inventory/InventoryService.php` — business logic
+- `resources/js/Pages/Inventory/Index.vue` — Web/Inertia UI
+- `resources/js/Pages/Inventory/History.vue` — History page
 
--- Partial index: hanya completed yang relevan untuk report
-CREATE INDEX idx_orders_completed_ordered_at ON orders.orders(ordered_at) WHERE status = 'completed';
+### Actual inventory routes
 
--- Composite index untuk query umum
-CREATE INDEX idx_orders_status_ordered_at ON orders.orders(status, ordered_at);
-CREATE INDEX idx_orders_payment_status_ordered_at ON orders.orders(payment_status, ordered_at);
-CREATE INDEX idx_orders_order_type_ordered_at ON orders.orders(order_type, ordered_at);
-CREATE INDEX idx_payments_status_paid_at ON orders.payments(status, paid_at);
-CREATE INDEX idx_payments_method_paid_at ON orders.payments(method, paid_at);
-CREATE INDEX idx_order_items_order_guid ON orders.order_items(order_guid);
-CREATE INDEX idx_order_items_product_guid ON orders.order_items(product_guid);
-CREATE INDEX idx_products_category_guid ON product.products(category_guid);
-CREATE INDEX idx_products_group_guid ON product.products(group_guid);
-```
-
-#### Search Index (opsional jika data besar)
-```sql
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-CREATE INDEX idx_orders_customer_name_trgm ON orders.orders USING gin (customer_name gin_trgm_ops);
-CREATE INDEX idx_orders_customer_phone_trgm ON orders.orders USING gin (customer_phone gin_trgm_ops);
-CREATE INDEX idx_products_name_trgm ON product.products USING gin (name gin_trgm_ops);
-```
-
-#### Query Pattern (Chunking)
-```php
-// WAJIB untuk export: lazyById/chunkById, jangan ->get() atau ->all()
-// Untuk export besar, prefer Query Builder + select eksplisit agar tidak hydrate model Eloquent.
-DB::table('orders.orders as o')
-    ->select([
-        'o.id',
-        'o.order_number',
-        'o.customer_name',
-        'o.order_type',
-        'o.status',
-        'o.payment_status',
-        'o.total_amount',
-        'o.ordered_at',
-    ])
-    ->whereBetween('o.ordered_at', [$from, $to])
-    ->whereIn('o.status', $statuses)
-    ->orderBy('o.id')
-    ->lazyById(500, 'o.id')
-    ->each(function ($order) use ($writer) {
-            $writer->addRow([...]);
-    });
-```
-
-#### Catatan Join + Chunk
-- Sales export: chunk/lazy by `orders.orders.id`
-- Payment export: chunk/lazy by `orders.payments.id`
-- Product export: chunk/lazy by `orders.order_items.id`
-- Pada query join, selalu pakai alias kolom id yang jelas agar tidak bentrok
-
-#### Export Architecture
-- **Library:** OpenSpout (`openspout/openspout`) — streaming writer, memory fixed
-- **Queue:** Process via Job biar user ga nunggu
-- **File:** Simpan sementara di `storage/app/reports/`, cleanup scheduler
-- **Cache:** Cache query agregat, bukan raw data
-- **Preview vs Export:** preview pakai pagination kecil, export selalu async via job
-- **Storage Metadata:** simpan status export, filter JSON, file path, row count, error message, requested_by, expired_at
-
-## Shift Feature Plan - Build From Scratch
-
-Status memori: fitur shift dianggap belum ada. Implementasi berikutnya harus dimulai dari migration, model, service, controller, route, integrasi order, lalu halaman monitoring.
-
-### Tujuan
-- Cashier membuka dan menutup shift dari Tablet POS.
-- Frontend/tablet mengirim `work_hours` sebagai data kerja shift. Backend menyimpan nilai ini apa adanya, lalu boleh memvalidasi konsistensi dengan `opened_at` dan `closed_at`.
-- Backend menghitung pendapatan sales per shift dari order yang terhubung ke shift tersebut.
-- Order direlasikan ke shift lewat `shift_guid` pada request dan `shift_id` di database.
-- Relasi code dibuat dua arah: `Shift hasMany Order`, `Order belongsTo Shift`.
-
-### Prinsip Workflow
-- Controller tipis: validasi request, ambil user dari token/session, panggil service.
-- Logic shift ada di `app/Services/Shifts/ShiftService.php`.
-- Query summary shift ada di `app/Services/Shifts/ShiftSalesSummary.php` agar ringan dan reusable.
-- Summary sales dihitung dengan SQL aggregate, bukan collection `get()->sum()`.
-- Timestamp dan `work_hours` berasal dari frontend/tablet. Server tidak membuat durasi memakai `now()` untuk data bisnis.
-- Satu cashier hanya boleh punya satu shift berstatus `open`.
-
-### Database Plan
-```sql
-CREATE TABLE authentication.shifts (
-    id               BIGSERIAL PRIMARY KEY,
-    guid             UUID UNIQUE NOT NULL,
-    user_id          BIGINT NOT NULL REFERENCES authentication.users(id),
-    user_guid        UUID NOT NULL REFERENCES authentication.users(guid),
-    shift_number     VARCHAR(30) UNIQUE NOT NULL,
-    opened_at        TIMESTAMP NOT NULL,
-    closed_at        TIMESTAMP NULL,
-    work_hours       DECIMAL(8,2) NOT NULL DEFAULT 0,
-    opening_balance  DECIMAL(15,2) NOT NULL DEFAULT 0,
-    closing_balance  DECIMAL(15,2) NULL,
-    expected_balance DECIMAL(15,2) NOT NULL DEFAULT 0,
-    difference       DECIMAL(15,2) NULL,
-    notes            TEXT NULL,
-    status           VARCHAR(20) NOT NULL DEFAULT 'open',
-    created_at       TIMESTAMP NULL,
-    updated_at       TIMESTAMP NULL
-);
-
-ALTER TABLE orders.orders ADD COLUMN shift_id BIGINT NULL REFERENCES authentication.shifts(id);
-ALTER TABLE orders.orders ADD COLUMN user_id BIGINT NULL REFERENCES authentication.users(id);
-```
-
-### Model Relation Plan
-```php
-// app/Models/Shift.php
-public function orders()
-{
-    return $this->hasMany(Order::class, 'shift_id', 'id');
-}
-
-public function user()
-{
-    return $this->belongsTo(User::class, 'user_id', 'id');
-}
-
-// app/Models/Order.php
-public function shift()
-{
-    return $this->belongsTo(Shift::class, 'shift_id', 'id');
-}
-
-public function cashier()
-{
-    return $this->belongsTo(User::class, 'user_id', 'id');
-}
-```
-
-### API Endpoints
-
-| Method | Endpoint | Auth | Fungsi |
+#### API
+| Method | URI | Controller@Method | Notes |
 |---|---|---|---|
-| `POST` | `/shift/store` | EnsureApiToken | Buka shift baru |
-| `PUT` | `/shift/close` | EnsureApiToken | Tutup shift |
-| `GET` | `/shift/active` | EnsureApiToken | Cek shift active user ini |
-| `GET` | `/shift/{guid}` | EnsureApiToken | Detail shift (summary) |
-| `POST` | `/shift` | EnsureApiToken | List shift (filter) |
+| POST | `/inventory` | `InventoryController@index` | List inventory |
+| POST | `/inventory/store` | `InventoryController@store` | Create inventory |
+| GET | `/inventory/{guid}` | `InventoryController@show` | Detail inventory |
+| PUT | `/inventory/update` | `InventoryController@update` | Update inventory fields (no stock) |
+| DELETE | `/inventory/{guid}` | `InventoryController@destroy` | Delete inventory |
+| POST | `/inventory/adjust` | `InventoryAdjustmentController@adjust` | Adjust stock (in/out/adjustment) |
+| POST | `/inventory/history` | `InventoryAdjustmentController@history` | List history of an inventory |
 
-### 1. Open Shift - `POST /shift/store`
+#### Web
+| Method | URI | Controller@Method | Notes |
+|---|---|---|---|
+| GET | `/inventory` | `InventoryPageController@index` | Halaman inventory |
+| POST | `/inventory/items` | `InventoryPageController@store` | Create inventory |
+| PUT | `/inventory/items/{guid}` | `InventoryPageController@update` | Update (no stock) |
+| DELETE | `/inventory/items/{guid}` | `InventoryPageController@destroy` | Delete |
+| POST | `/inventory/items/{guid}/adjust` | `InventoryPageController@adjust` | Adjust stock |
+| GET | `/inventory/items/{guid}/history` | `InventoryPageController@history` | Riwayat mutasi |
 
-**Request:**
-```json
-{
-    "opened_at": "2026-06-03T08:00:00+07:00",
-    "work_hours": 8,
-    "opening_balance": 500000,
-    "notes": "Shift pagi"
-}
-```
+## Orders
+Order tables:
+- `orders.orders`
+- `orders.order_items`
+- `orders.payments`
 
-**Validation:**
-| Field | Rule |
-|---|---|
-| `opened_at` | required, date (ISO 8601 from tablet) |
-| `work_hours` | required, numeric, min:0.25, max:24 |
-| `opening_balance` | required, numeric, min:0 |
-| `notes` | nullable, string |
+Important fields:
+- `orders.orders.status`: `draft`, `open`, `completed`, `cancelled`
+- `orders.orders.payment_status`: `unpaid`, `partial`, `paid`, `refunded`
+- `orders.orders.shift_id` and `orders.orders.user_id` exist from shift integration.
 
-**Logic:**
-1. Ambil user dari API token.
-2. Tolak jika user sudah punya shift `open`.
-3. Generate `shift_number`: `SH-{Ymd}-{NNN}` berdasarkan tanggal `opened_at`.
-4. Simpan `opened_at`, `work_hours`, dan `opening_balance` dari frontend.
-5. Set `expected_balance = opening_balance`, status `open`.
+Order creation paths:
+- Tablet API: `App\Http\Controllers\OrderController@store`
+- Dashboard web: `App\Http\Controllers\OrderPageController@store`
 
-**Response (201):**
-```json
-{
-    "response": {
-        "code": "00",
-        "status": "success",
-        "data": {
-            "guid": "uuid-shift",
-            "shift_number": "SH-20260603-001",
-            "user": {
-                "guid": "uuid-user",
-                "full_name": "Ahmad"
-            },
-            "opened_at": "2026-06-03T08:00:00+07:00",
-            "work_hours": 8,
-            "opening_balance": 500000,
-            "expected_balance": 500000,
-            "status": "open",
-            "notes": "Shift pagi"
-        },
-        "message_en": "Shift opened successfully.",
-        "message_id": "Shift berhasil dibuka."
-    }
-}
-```
+Order completion path:
+- Dashboard web currently uses `App\Http\Controllers\OrderPageController@complete`
+- Future API completion/status update must also call the same inventory deduction service.
 
-### 2. Close Shift - `PUT /shift/close`
+Inventory rule:
+- Deduct stock only when order status transitions to `completed`.
+- Do not deduct stock on `draft`, `open`, payment creation, or order creation.
+- Cancelled orders must not deduct stock.
 
-**Request:**
-```json
-{
-    "guid": "uuid-shift",
-    "closed_at": "2026-06-03T16:00:00+07:00",
-    "work_hours": 8,
-    "closing_balance": 2500000,
-    "notes": "Shift selesai lancar"
-}
-```
+## Shifts
+Shift is already implemented, not merely planned.
 
-**Validation:**
-| Field | Rule |
-|---|---|
-| `guid` | required, string, exists:shifts |
-| `closed_at` | required, date (ISO 8601 from tablet) |
-| `work_hours` | required, numeric, min:0.25, max:24 |
-| `closing_balance` | required, numeric, min:0 |
-| `notes` | nullable, string |
+Actual table:
+- `orders.shifts`
 
-**Logic:**
-1. Cari shift berdasarkan `guid`, user login, dan status `open`.
-2. Simpan `closed_at` dan `work_hours` dari frontend.
-3. Hitung summary sales dari order yang punya `shift_id`.
-4. `expected_balance = opening_balance + cash_sales`.
-5. `difference = closing_balance - expected_balance`.
-6. Set status `closed` dan kembalikan summary shift.
-
-**Response (200):**
-```json
-{
-    "response": {
-        "code": "00",
-        "status": "success",
-        "data": {
-            "guid": "uuid-shift",
-            "shift_number": "SH-20260603-001",
-            "user": {
-                "guid": "uuid-user",
-                "full_name": "Ahmad"
-            },
-            "opened_at": "2026-06-03T08:00:00+07:00",
-            "closed_at": "2026-06-03T16:00:00+07:00",
-            "work_hours": 8,
-            "opening_balance": 500000,
-            "closing_balance": 2500000,
-            "expected_balance": 2400000,
-            "difference": 100000,
-            "status": "closed",
-            "notes": "Shift selesai lancar",
-            "summary": {
-                "total_sales": 2100000,
-                "cash_sales": 1900000,
-                "digital_sales": 200000,
-                "order_count": 24
-            }
-        },
-        "message_en": "Shift closed successfully.",
-        "message_id": "Shift berhasil ditutup."
-    }
-}
-```
-
-**Catatan `difference`**: nilai positif = lebih (uang fisik lebih banyak dari seharusnya), negatif = kurang.
-
-### 3. Active Shift - `GET /shift/active`
-
-**Logic:**
-1. Cari shift milik user ini dengan status `open`
-2. Jika tidak ada: return null (boleh buka shift baru)
-
-**Response (200):**
-```json
-{
-    "response": {
-        "code": "00",
-        "status": "success",
-        "data": {
-            "guid": "uuid-shift",
-            "shift_number": "SH-20260603-001",
-            "opened_at": "2026-06-03T08:00:00+07:00",
-            "work_hours": 8,
-            "opening_balance": 500000,
-            "expected_balance": 2400000,
-            "status": "open",
-            "summary": {
-                "total_sales": 2100000,
-                "cash_sales": 1900000,
-                "digital_sales": 200000,
-                "order_count": 24
-            }
-        }
-    }
-}
-```
-
-### 4. Detail Shift - `GET /shift/{guid}`
-
-**Logic:**
-1. Load shift + user info.
-2. Hitung summary sales dari order yang punya `shift_id`.
-3. Tampilkan `work_hours`, balance, summary, dan order terbaru.
-4. Jika status `closed`: tampilkan closing_balance, expected_balance, difference.
-
-**Response (200):** Full data shift + summary + daftar orders (terbaru, max 50).
-
-### 5. List Shift - `POST /shift`
-
-**Request:**
-```json
-{
-    "filter": {
-        "set_guid": false,
-        "guid": "uuid-shift",
-        "set_status": true,
-        "status": "closed",
-        "set_user_guid": true,
-        "user_guid": "uuid-user",
-        "set_from_date": true,
-        "from_date": "2026-06-01",
-        "set_to_date": true,
-        "to_date": "2026-06-03"
-    },
-    "limit": 20,
-    "page": 1,
-    "order": "opened_at",
-    "sort": "DESC"
-}
-```
-
-**Validation:**
-| Field | Rule |
-|---|---|
-| `filter` | nullable, array |
-| `filter.set_guid` | nullable, boolean |
-| `filter.guid` | nullable, string |
-| `filter.set_status` | nullable, boolean |
-| `filter.status` | nullable, string, in:open,closed |
-| `filter.set_user_guid` | nullable, boolean |
-| `filter.user_guid` | nullable, string, exists:authentication.users |
-| `filter.set_from_date` | nullable, boolean |
-| `filter.from_date` | nullable, date |
-| `filter.set_to_date` | nullable, boolean |
-| `filter.to_date` | nullable, date |
-| `limit` | nullable, integer, min:1, max:100 |
-| `page` | nullable, integer, min:1 |
-| `order` | nullable, string, in:shift_number,opened_at,closed_at,created_at |
-| `sort` | nullable, string, in:ASC,DESC |
-
-### Integrasi dengan Order (Tablet)
-
-**`POST /api/orders/store`** menerima field `shift_guid` opsional:
-```json
-{
-    "shift_guid": "uuid-shift",
-    "items": [...],
-    "payments": [...]
-}
-```
-- Jika `shift_guid` dikirim, cari shift milik user login dengan status `open`.
-- Simpan `orders.orders.shift_id = shifts.id`.
-- Simpan `orders.orders.user_id = authenticated user id`.
-- Jika `shift_guid` tidak dikirim, order boleh dibuat tanpa shift sesuai kebutuhan bisnis.
-- Detail order response menampilkan `shift_guid` dan `shift_number` jika ada.
-
-### Shift Sales Summary
-Summary dihitung dari `orders.orders` join `orders.payments`, dibatasi oleh `shift_id`, bukan hanya range waktu.
-
-Output minimal:
-```json
-{
-  "total_sales": 2100000,
-  "cash_sales": 1900000,
-  "digital_sales": 200000,
-  "order_count": 24,
-  "paid_order_count": 23,
-  "pending_payment_count": 1
-}
-```
-
-Query guideline:
-- `total_sales`: SUM `orders.total_amount` untuk order status `completed`.
-- `cash_sales`: SUM payment amount method `cash` dan status `paid`.
-- `digital_sales`: SUM payment amount method selain `cash` dan status `paid`.
-- `order_count`: COUNT distinct orders pada shift.
-- Gunakan Query Builder dengan select aggregate dan `COALESCE`.
-
-### Dashboard Web - Shift Monitoring
-
-| Halaman | Route | Fungsi |
-|---|---|---|
-| Shift index | `GET /shifts` | Lihat semua shift (active + history) |
-| Shift detail | `GET /shifts/{guid}` | Detail shift, daftar order, rekap payment |
-| Dashboard | `GET /` | Card active shifts (jumlah kasir aktif, durasi, sales) |
-
-### Suggested Files
-- `database/migrations/*_create_authentication_shifts_table.php`
-- `database/migrations/*_add_shift_id_and_user_id_to_orders_table.php`
+Actual files:
+- `database/migrations/2026_06_04_000001_create_order_shifts_table.php`
 - `app/Models/Shift.php`
 - `app/Services/Shifts/ShiftService.php`
 - `app/Services/Shifts/ShiftSalesSummary.php`
@@ -590,14 +244,82 @@ Query guideline:
 - `resources/js/Pages/Shift/Index.vue`
 - `resources/js/Pages/Shift/Show.vue`
 
-### Saran Index PostgreSQL
-```sql
-CREATE INDEX idx_shifts_user_id ON authentication.shifts(user_id);
-CREATE INDEX idx_shifts_user_guid ON authentication.shifts(user_guid);
-CREATE INDEX idx_shifts_status ON authentication.shifts(status);
-CREATE INDEX idx_shifts_opened_at ON authentication.shifts(opened_at);
-CREATE INDEX idx_shifts_status_user_id ON authentication.shifts(status, user_id);
-CREATE INDEX idx_orders_shift_id ON orders.orders(shift_id);
-CREATE INDEX idx_orders_user_id ON orders.orders(user_id);
-CREATE INDEX idx_orders_shift_status ON orders.orders(shift_id, status);
+Shift behavior:
+- Cashier opens/closes shift from Tablet POS API.
+- One user can only have one `open` shift.
+- `orders.orders.shift_id` links order to shift.
+- `orders.orders.user_id` links order to cashier.
+- Shift summary is calculated from orders/payments linked by `shift_id`.
+
+## Reports
+Report page and API are implemented.
+
+Actual files:
+- `app/Http/Controllers/ReportPageController.php`
+- `app/Http/Controllers/ReportController.php`
+- `app/Services/Reports/*ReportQuery.php`
+- `app/Jobs/ExportReportJob.php`
+- `app/Models/ReportExport.php`
+- `resources/js/Pages/Reports/Index.vue`
+- `resources/js/Pages/Reports/Exports.vue`
+
+Report query rules:
+- Controllers validate request and delegate query logic to services.
+- Large report queries should use SQL aggregates, not collection `get()->sum()`.
+- Export should stream/chunk data instead of loading everything into memory.
+- Whitelist sort columns. Do not pass raw request order columns to `orderBy`.
+
+## API Prefix
+`bootstrap/app.php` currently sets `apiPrefix: ''`, so API routes are mounted without the `/api` prefix.
+
+Examples:
+- Use `/products`, not `/api/products`.
+- Use `/orders`, not `/api/orders`.
+- Use `/inventory`, not `/api/inventory`.
+
+If a future change adds `apiPrefix: 'api'`, update API docs, AGENTS.md, and clients together.
+
+## API Filter Pattern
+List endpoints use the `set_` filter convention:
+
+```json
+{
+  "filter": {
+    "set_guid": true,
+    "guid": "uuid",
+    "set_status": false,
+    "status": "active"
+  },
+  "limit": 20,
+  "page": 1,
+  "order": "name",
+  "sort": "ASC"
+}
 ```
+
+Rules:
+- `set_{field} = true` means the filter is active.
+- `set_{field} = false` means ignore that value.
+- Simple CRUD/list controllers may use `app/Traits/Filterable.php`.
+- Complex reports should use dedicated query services.
+
+## Seeder Order
+`DatabaseSeeder` currently calls:
+- `ApiClientSeeder`
+- `AuthenticationRoleSeeder`
+- `AuthenticationUserSeeder`
+- `CatalogSeeder`
+- `InventoryHistorySeeder`
+- `OrderSeeder`
+- `ShiftSeeder`
+- default Laravel `User::factory()` test user
+
+Seeder branch defaults:
+- Public users factory uses `id_cabang = PUSAT`.
+- Catalog inventory seed uses `id_cabang = PUSAT`.
+
+## Development Notes
+- Prefer existing Laravel/Eloquent patterns in the repo.
+- Keep controller logic thin when adding larger modules; put business logic in services.
+- Use Query Builder/SQL aggregate for dashboards and summaries with potentially large data.
+- Keep dashboard UI consistent with existing Inertia pages and global responsive CSS.

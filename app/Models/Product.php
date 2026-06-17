@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['guid', 'category_guid', 'group_guid', 'name', 'description', 'image', 'price', 'is_active'])]
 class Product extends Model
@@ -19,6 +20,11 @@ class Product extends Model
     public function group(): BelongsTo
     {
         return $this->belongsTo(ProductGroup::class, 'group_guid', 'guid');
+    }
+
+    public function inventories(): HasMany
+    {
+        return $this->hasMany(ProductInventory::class, 'product_guid', 'guid');
     }
 
     protected function casts(): array

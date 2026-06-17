@@ -210,19 +210,6 @@ Catatan integrasi shift:
 
 ### Schema: `authentication`
 ```
-shifts
-  ├── id, guid (uuid)
-  ├── user_id → users.id
-  ├── user_guid → users.guid
-  ├── shift_number (SH-20260603-001)
-  ├── opened_at (dari tablet), closed_at (dari tablet)
-  ├── work_hours (dari frontend/tablet)
-  ├── opening_balance, closing_balance
-  ├── expected_balance, difference
-  ├── notes, status (open/closed)
-  └── timestamps
-```
-```
 roles
   ├── id, guid (uuid)
   ├── name (Superadmin, Owner, Manager, Cashier, Users)
@@ -303,6 +290,22 @@ payments
   ├── paid_at (dari tablet)
   ├── reference_number
   └── notes
+
+shifts
+  ├── id, guid (uuid)
+  ├── user_id → authentication.users.id
+  ├── user_guid → authentication.users.guid
+  ├── shift_number (SH-{Ymd}-{NNN}, unique)
+  ├── opened_at (dari tablet)
+  ├── closed_at (dari tablet, nullable)
+  ├── work_hours (decimal 8,2, dari tablet)
+  ├── opening_balance (decimal 15,2)
+  ├── closing_balance (decimal 15,2, nullable)
+  ├── expected_balance (decimal 15,2)
+  ├── difference (decimal 15,2, nullable)
+  ├── notes (nullable)
+  ├── status (open/closed, default open)
+  └── timestamps
 ```
 
 ---
@@ -312,18 +315,49 @@ payments
 Fitur shift sudah diimplementasikan untuk Tablet POS dan dashboard monitoring web.
 
 ### Struktur Code Aktual
+- `database/migrations/2026_06_04_000001_create_order_shifts_table.php`
 - `app/Models/Shift.php`
+- `app/Models/Order.php` (relasi `shift()` dan `cashier()`)
+- `app/Models/AuthenticationUser.php` (relasi `shifts()`)
 - `app/Services/Shifts/ShiftService.php`
 - `app/Services/Shifts/ShiftSalesSummary.php`
 - `app/Http/Controllers/ShiftApiController.php`
 - `app/Http/Controllers/ShiftPageController.php`
+- `app/Http/Controllers/OrderController.php` (integrasi `shift_guid`)
+- `app/Http/Controllers/HomePageController.php` (data `active_shift`)
+- `routes/api.php`
+- `routes/web.php`
+- `database/seeders/ShiftSeeder.php`
 - `resources/js/Pages/Shift/Index.vue`
 - `resources/js/Pages/Shift/Show.vue`
+- `resources/js/Components/AppSidebar.vue` (navigasi `/shifts`)
+- `resources/js/Components/AppNavbar.vue` (indikator shift pill)
+
+### Model Relations
+```php
+// Shift.php
+public function user(): BelongsTo        // belongsTo AuthenticationUser
+public function orders(): HasMany        // hasMany Order via shift_id
+
+// Order.php
+public function shift(): BelongsTo       // belongsTo Shift via shift_id
+public function cashier(): BelongsTo     // belongsTo AuthenticationUser via user_id
+
+// AuthenticationUser.php
+public function shifts(): HasMany        // hasMany Shift via user_id
+```
 
 ### Lokasi Data
 - Tabel shift berada di schema `orders.shifts`.
 - `orders.orders.shift_id` mereferensikan `orders.shifts.id`.
 - `orders.orders.user_id` mereferensikan `authentication.users.id`.
+
+### Seeder
+- `database/seeders/ShiftSeeder.php` — dipanggil dari `DatabaseSeeder`
+- Membuat 2 user cashier (Ahmad Fauzi, Dewi Lestari) jika belum ada
+- Membuat 2 shift demo: 1 closed (kemarin, Ahmad) + 1 open (hari ini, Dewi)
+- Masing-masing shift terhubung ke beberapa order via `shift_id` + `user_id`
+- `refreshBalance()` menghitung ulang `expected_balance` berdasarkan cash sales aktual
 
 ### Workflow Ringan
 ```
@@ -561,6 +595,16 @@ CREATE INDEX idx_order_items_order_guid ON orders.order_items(order_guid);
 CREATE INDEX idx_order_items_product_guid ON orders.order_items(product_guid);
 CREATE INDEX idx_products_category_guid ON product.products(category_guid);
 CREATE INDEX idx_products_group_guid ON product.products(group_guid);
+
+-- Shift indexes
+CREATE INDEX idx_shifts_user_id ON orders.shifts(user_id);
+CREATE INDEX idx_shifts_user_guid ON orders.shifts(user_guid);
+CREATE INDEX idx_shifts_status ON orders.shifts(status);
+CREATE INDEX idx_shifts_opened_at ON orders.shifts(opened_at);
+CREATE INDEX idx_shifts_status_user_id ON orders.shifts(status, user_id);
+CREATE INDEX idx_orders_shift_id ON orders.orders(shift_id);
+CREATE INDEX idx_orders_user_id ON orders.orders(user_id);
+CREATE INDEX idx_orders_shift_status ON orders.orders(shift_id, status);
 ```
 
 Search index opsional jika data besar:
@@ -570,6 +614,121 @@ CREATE INDEX idx_orders_customer_name_trgm ON orders.orders USING gin (customer_
 CREATE INDEX idx_orders_customer_phone_trgm ON orders.orders USING gin (customer_phone gin_trgm_ops);
 CREATE INDEX idx_products_name_trgm ON product.products USING gin (name gin_trgm_ops);
 ```
+
+---
+
+## Inventory History — Mutasi Stok
+
+### Tabel
+Riwayat mutasi stok disimpan di `product.inventory_history`. Setiap perubahan `current_stock` di `product.inventories` WAJIB melalui `InventoryService::adjustStock()`.
+
+### Kolom Penting
+
+| Kolom | Isi |
+|---|---|
+| `type` | `in` (stok masuk), `out` (stok keluar), `adjustment` (penyesuaian) |
+| `qty` | Selalu positif |
+| `stock_before` / `stock_after` | Snapshot stok sebelum dan sesudah mutasi |
+| `reference_type` | `order` (pesanan selesai), `manual_adjustment` (admin) |
+| `reference_id` | GUID dari referensi (order_guid) |
+| `created_by` | User yang melakukan mutasi |
+
+### Alur Mutasi Stok
+
+```
+[Manual Adjustment]
+  Web/API → InventoryAdjustmentController@adjust
+    → InventoryService::adjustStock()
+      1. Validasi stok cukup (jika type=out)
+      2. Hitung stock_before & stock_after
+      3. Update current_stock di product.inventories
+      4. Simpan record ke inventory_history
+      5. Return history record
+
+[Order Completed]
+  OrderPageController@complete atau OrderController@update (status→completed)
+    → Loop order_items
+    → InventoryService::adjustStock() per item
+      (type=out, reference_type=order, reference_id=order_guid)
+    → Idempotent: jika sudah ada history untuk order ini → skip
+```
+
+### Rule Mutasi Stok via Order
+
+- Deduct hanya saat status order berubah menjadi `completed`.
+- Jangan deduct stok saat order `draft`, `open`, atau pembayaran dibuat.
+- Order `cancelled` tidak mengurangi stok.
+- Idempotent: menyelesaikan order yang sama dua kali tidak boleh mengurangi stok dua kali.
+
+### Integrasi Order → Inventory
+
+```
+OrderPageController@complete():
+  order->status = completed
+  foreach order->items:
+    inventory = ProductInventory::where product_guid, id_cabang
+    InventoryService::adjustStock(
+      inventory  = inventory,
+      type       = 'out',
+      qty        = item->quantity,
+      reference_type = 'order',
+      reference_id   = order->guid,
+      created_by     = auth user
+    )
+```
+
+### Endpoint
+
+| Method | Endpoint | Fungsi | Controller |
+|---|---|---|---|
+| POST | `/inventory/adjust` | Adjust stok + catat history | `InventoryAdjustmentController@adjust` |
+| POST | `/inventory/history` | List riwayat mutasi suatu inventory | `InventoryAdjustmentController@history` |
+| POST | `/inventory/items/{guid}/adjust` | Adjust stok via web | `InventoryPageController@adjust` |
+| GET | `/inventory/items/{guid}/history` | Riwayat mutasi via web | `InventoryPageController@history` |
+
+### Alur Deduksi Stok Order
+
+```
+User klik "Selesai" (complete)
+        │
+        ▼
+ OrderPageController@complete
+        │
+        ├── Update status = completed
+        │
+        ├── Loop order_items
+        │     │
+        │     ▼
+        │   Cari inventory (product_guid, id_cabang)
+        │     │
+        │     ├── Cek apakah sudah ada history order ini?
+        │     │     YES → skip (idempotent)
+        │     │     NO  → lanjut
+        │     │
+        │     ▼
+        │   InventoryService::adjustStock(
+        │     type = 'out',
+        │     qty  = item.quantity,
+        │     reference_type = 'order',
+        │     reference_id   = order.guid
+        │   )
+        │     │
+        │     ├── Validasi stok cukup?
+        │     │     YES → lanjut
+        │     │     NO  → return error 422 (insufficient stock)
+        │     │
+        │     ├── stock_before = current_stock
+        │     ├── current_stock -= qty
+        │     ├── stock_after  = current_stock
+        │     ├── Update product.inventories SET current_stock
+        │     └── INSERT inventory_history
+        │
+        └── Selesai
+```
+
+### Insufficient Stock Error
+
+Jika stok tidak cukup, order tetap `completed` tapi item yang tidak cukup stoknya tetap dicatat dengan catatan stok minus. Alternatif: tolak complete jika stok tidak cukup.
 
 ---
 
@@ -583,6 +742,6 @@ CREATE INDEX idx_products_name_trgm ON product.products USING gin (name gin_trgm
 | Manajemen Order Web | ✅ | Buat order, bayar, selesai, cancel |
 | Dashboard KPI | ✅ | Harian, aktif |
 | Role & Roles | 🟡 | Role list sudah fixed (5 role), tapi otorisasi belum diimplementasi |
-| Shift | ✅ | Migration, API, service, integrasi order, dan UI monitoring tersedia |
+| Shift | ✅ | Migration, model, API (5 endpoint), service, integrasi order, UI monitoring, sidebar nav, navbar pill, seeder demo |
 | Laporan/Report + Export | ✅ | Preview, summary, export CSV async, status, download, dan history tersedia |
-| Shift Filter Dashboard | ✅ | Halaman `/shifts` menyediakan filter status dan pencarian cashier/nomor shift |
+| Inventory History & Stock Movement | 🟡 | Migration ✅, Model ✅, Seeder ✅, API doc ✅, workflow doc ✅. Service & Controller & UI menyusul. |

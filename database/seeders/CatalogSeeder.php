@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductInventory;
 use App\Models\ProductGroup;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
@@ -89,7 +90,7 @@ class CatalogSeeder extends Seeder
         ];
 
         foreach ($products as $item) {
-            Product::query()->updateOrCreate(
+            $product = Product::query()->updateOrCreate(
                 ['name' => $item['name']],
                 [
                     'guid' => $item['guid'],
@@ -100,6 +101,22 @@ class CatalogSeeder extends Seeder
                     'is_active' => true,
                 ],
             );
+
+            $inventory = ProductInventory::query()->firstOrNew([
+                'product_guid' => $product->guid,
+                'id_cabang' => 'PUSAT',
+            ]);
+
+            if (! $inventory->exists) {
+                $inventory->guid = (string) Str::uuid();
+            }
+
+            $inventory->fill([
+                'unit' => 'pcs',
+                'current_stock' => 0,
+                'minimum_stock' => 0,
+                'is_active' => true,
+            ])->save();
         }
     }
 
