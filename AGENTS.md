@@ -8,14 +8,15 @@
   - Tablet POS App via API endpoints for cashier operations.
 
 ## Actual Database Schemas
-- `public.users`: default Laravel users table. This table now has `id_cabang` with default value `PUSAT`.
+- `public.users`: default Laravel users table. This table now has `guid_cabang` with default value `PUSAT` (`aaaaaaaa-aaaa-4000-8000-000000000001`).
 - `authentication.*`: POS authentication domain.
   - `authentication.roles`
-  - `authentication.users`
+  - `authentication.users` — has `guid_cabang` FK → `authentication.cabang.guid`
   - `authentication.user_details`
   - `authentication.api_clients`
   - `authentication.api_tokens`
   - `authentication.authentications`
+   - `authentication.cabang` — master cabang (PUSAT, CBG1, CBG2)
 - `product.*`: catalog and inventory domain.
   - `product.categories`
   - `product.groups`
@@ -89,6 +90,7 @@ Catalog image rule:
 Product model:
 - `App\Models\Product`
 - Table: `product.products`
+- Columns: `id`, `guid`, `sku` (unique), `category_guid`, `group_guid`, `name`, `description`, `image`, `price`, `guid_cabang`, `is_active`, timestamps
 - Relations: `category`, `group`, `inventories`
 
 ## Inventory
@@ -106,14 +108,14 @@ Stok tersedia per produk per cabang. `current_stock` di-update real-time setiap 
 | `id` | BIGINT | | PK |
 | `guid` | UUID | | Unique |
 | `product_guid` | UUID | | FK → `product.products.guid`, cascade on delete |
-| `id_cabang` | VARCHAR(50) | `PUSAT` | |
+| `guid_cabang` | UUID | | FK → `authentication.cabang.guid` |
 | `unit` | VARCHAR(20) | `pcs` | |
 | `current_stock` | DECIMAL(15,2) | 0 | Diupdate real-time via InventoryService |
 | `minimum_stock` | DECIMAL(15,2) | 0 | |
 | `is_active` | BOOLEAN | true | |
 | timestamps | | | |
 
-Unique: `(product_guid, id_cabang)`.
+Unique: `(product_guid, guid_cabang)`.
 
 #### `product.inventory_history` — Riwayat Mutasi Stok
 
@@ -125,7 +127,7 @@ Mencatat setiap perubahan stok (in/out/adjustment) sebagai audit trail.
 | `guid` | UUID | | Unique |
 | `inventory_id` | UUID | | FK → `product.inventories.guid` |
 | `product_guid` | UUID | | Denormalisasi dari inventory |
-| `id_cabang` | VARCHAR(50) | | Denormalisasi dari inventory |
+| `guid_cabang` | UUID | | FK → `authentication.cabang.guid`, denormalisasi dari inventory |
 | `type` | ENUM('in','out','adjustment') | | `in` = stok masuk, `out` = stok keluar, `adjustment` = penyesuaian |
 | `qty` | DECIMAL(15,2) | | Selalu positif; arah ditentukan oleh `type` |
 | `stock_before` | DECIMAL(15,2) | | Stok sebelum mutasi |
@@ -139,14 +141,14 @@ Mencatat setiap perubahan stok (in/out/adjustment) sebagai audit trail.
 | `created_at` | TIMESTAMP | | |
 | `updated_at` | TIMESTAMP | | |
 
-Index: `inventory_id`, `product_guid`, `id_cabang`, `reference_type`, `reference_id`, `is_active`, `created_at`, `user_guid_reff`.
+Index: `inventory_id`, `product_guid`, `guid_cabang`, `reference_type`, `reference_id`, `is_active`, `created_at`, `user_guid_reff`.
 
 ### Rules
 
-- `id_cabang` comes from branch code convention on `public.users.id_cabang`.
+- `guid_cabang` is UUID FK → `authentication.cabang.guid`. Default cabang adalah PUSAT (`aaaaaaaa-aaaa-4000-8000-000000000001`).
 - Current default branch is `PUSAT`.
 - Current default unit for all seeded restaurant POS stock is `pcs`.
-- `CatalogSeeder` creates one inventory row per product with `id_cabang = PUSAT`, `unit = pcs`, `current_stock = 0`, and `minimum_stock = 0`.
+- `CatalogSeeder` creates one inventory row per product with `guid_cabang = PUSAT GUID`, `unit = pcs`, `current_stock = 0`, and `minimum_stock = 0`.
 - Inventory stock must be reduced when an order becomes `completed`, not when the order is merely created.
 - Stock deduction must be idempotent: completing the same order twice cannot reduce stock twice. Deduct hanya sekali via `InventoryService::adjustStock()`.
 - Setiap perubahan `current_stock` WAJIB melalui `InventoryService::adjustStock()` yang mencatat history.
@@ -322,6 +324,7 @@ Rules:
 `DatabaseSeeder` currently calls:
 - `ApiClientSeeder`
 - `AuthenticationRoleSeeder`
+- `CabangSeeder`
 - `AuthenticationUserSeeder`
 - `CatalogSeeder`
 - `InventoryHistorySeeder`
@@ -330,8 +333,8 @@ Rules:
 - default Laravel `User::factory()` test user
 
 Seeder branch defaults:
-- Public users factory uses `id_cabang = PUSAT`.
-- Catalog inventory seed uses `id_cabang = PUSAT`.
+- Public users factory uses `guid_cabang = PUSAT GUID`.
+- Catalog inventory seed uses `guid_cabang = PUSAT GUID`.
 
 ## Development Notes
 - Prefer existing Laravel/Eloquent patterns in the repo.

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'order_number',
     'shift_id',
     'user_id',
+    'guid_cabang',
     'customer_name',
     'customer_phone',
     'table_number',

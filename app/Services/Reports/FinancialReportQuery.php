@@ -72,6 +72,7 @@ class FinancialReportQuery extends ReportQuery
             ->groupByRaw('DATE(o.ordered_at)');
 
         $this->applyDateRange($query, $filters, 'o.ordered_at');
+        $this->applyInFilter($query, $filters, 'guid_cabang', 'o.guid_cabang');
         $this->applyInFilter($query, $filters, 'statuses', 'o.status');
         $this->applyInFilter($query, $filters, 'payment_statuses', 'o.payment_status');
 

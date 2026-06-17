@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'guid',
     'product_guid',
-    'id_cabang',
+    'guid_cabang',
     'unit',
     'current_stock',
     'minimum_stock',

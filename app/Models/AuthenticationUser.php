@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 #[Fillable([
     'guid',
     'role_id',
+    'guid_cabang',
     'username',
     'password',
     'salt',

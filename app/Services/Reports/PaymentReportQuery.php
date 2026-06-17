@@ -76,6 +76,7 @@ class PaymentReportQuery extends ReportQuery
 
         $this->applyDateRange($query, $filters, 'p.paid_at');
         $this->applyInFilter($query, $filters, 'methods', 'p.method');
+        $this->applyInFilter($query, $filters, 'guid_cabang', 'p.guid_cabang');
         $this->applyInFilter($query, $filters, 'statuses', 'p.status');
 
         return $query;

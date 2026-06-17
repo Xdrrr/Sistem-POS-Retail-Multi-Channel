@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'guid',
     'user_id',
     'user_guid',
+    'guid_cabang',
     'shift_number',
     'opened_at',
     'closed_at',

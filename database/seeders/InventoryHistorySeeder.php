@@ -56,7 +56,7 @@ class InventoryHistorySeeder extends Seeder
         DB::transaction(function () use ($user): void {
             $inventories = ProductInventory::query()
                 ->with('product')
-                ->where('id_cabang', 'PUSAT')
+                ->where('guid_cabang', 'aaaaaaaa-aaaa-4000-8000-000000000001')
                 ->get();
 
             foreach ($inventories as $inventory) {
@@ -70,7 +70,7 @@ class InventoryHistorySeeder extends Seeder
                     'guid' => (string) Str::uuid(),
                     'inventory_id' => $inventory->guid,
                     'product_guid' => $inventory->product_guid,
-                    'id_cabang' => $inventory->id_cabang,
+                    'guid_cabang' => $inventory->guid_cabang,
                     'type' => 'in',
                     'qty' => $qty,
                     'stock_before' => 0,

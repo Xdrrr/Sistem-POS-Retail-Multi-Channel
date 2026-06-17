@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cabang;
 use App\Models\Category;
 use App\Models\ProductGroup;
 use App\Models\ReportExport;
@@ -20,6 +21,7 @@ class ReportPageController extends Controller
             'appTimezone' => config('app.timezone'),
             'serverDatetime' => $now->format('Y-m-d\TH:i'),
             'reportTypes' => $factory->options(),
+            'cabangs' => Cabang::listActive(),
             'categories' => Category::query()
                 ->orderBy('name')
                 ->get(['guid', 'name'])
@@ -42,6 +44,7 @@ class ReportPageController extends Controller
         return Inertia::render('Reports/Exports', [
             'serverTime' => now()->format('l, d F Y at h:i A'),
             'reportTypes' => $factory->options(),
+            'cabangs' => Cabang::listActive(),
         ]);
     }
 

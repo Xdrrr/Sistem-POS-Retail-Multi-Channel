@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cabang;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductGroup;
@@ -22,6 +23,7 @@ class CatalogPageController extends Controller
         return Inertia::render('Catalog/Index', [
             'title' => 'Product Catalog',
             'server_time' => now()->format('l, d F Y at h:i A'),
+            'cabangs' => Cabang::listActive(),
             'categories' => Category::query()
                 ->orderBy('name')
                 ->get()
@@ -228,11 +230,13 @@ class CatalogPageController extends Controller
     {
         return [
             'guid' => $product->guid,
+            'sku' => $product->sku,
             'name' => $product->name,
             'description' => $product->description,
             'image' => $product->image,
             'image_url' => $this->catalogImageUrl($product->image),
             'price' => $product->price,
+            'guid_cabang' => $product->guid_cabang,
             'is_active' => $product->is_active,
             'category_guid' => $product->category_guid,
             'group_guid' => $product->group_guid,

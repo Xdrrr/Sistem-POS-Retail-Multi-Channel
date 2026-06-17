@@ -13,7 +13,7 @@ class InventoryHistory extends Model
         'guid',
         'inventory_id',
         'product_guid',
-        'id_cabang',
+        'guid_cabang',
         'type',
         'qty',
         'stock_before',

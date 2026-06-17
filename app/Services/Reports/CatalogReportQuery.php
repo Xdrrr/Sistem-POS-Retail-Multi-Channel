@@ -65,6 +65,7 @@ class CatalogReportQuery extends ReportQuery
             ->leftJoin('product.groups as g', 'g.guid', '=', 'p.group_guid')
             ->select(['p.id', 'p.name', 'p.description', 'p.price', 'p.is_active', 'c.name as category_name', 'g.name as group_name']);
 
+        $this->applyInFilter($query, $filters, 'guid_cabang', 'p.guid_cabang');
         $this->applyInFilter($query, $filters, 'category_guids', 'p.category_guid');
         $this->applyInFilter($query, $filters, 'group_guids', 'p.group_guid');
         $this->applySearch($query, $this->filter($filters, 'product_search'), ['p.name']);

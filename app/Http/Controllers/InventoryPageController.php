@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuthenticationUser;
+use App\Models\Cabang;
 use App\Models\InventoryHistory;
 use App\Models\Product;
 use App\Models\ProductInventory;
@@ -20,7 +21,7 @@ class InventoryPageController extends Controller
     {
         $inventories = ProductInventory::query()
             ->with(['product.category', 'product.group'])
-            ->orderBy('id_cabang')
+            ->orderBy('guid_cabang')
             ->orderBy(
                 Product::query()
                     ->select('name')
@@ -34,6 +35,7 @@ class InventoryPageController extends Controller
             'title' => 'Inventory',
             'server_time' => now()->format('l, d F Y at h:i A'),
             'inventories' => $inventories,
+            'cabangs' => Cabang::listActive(),
             'products' => Product::query()
                 ->where('is_active', true)
                 ->orderBy('name')
@@ -49,12 +51,12 @@ class InventoryPageController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate($this->rules());
-        $idCabang = $validated['id_cabang'] ?? 'PUSAT';
+        $guidCabang = $validated['guid_cabang'] ?? 'aaaaaaaa-aaaa-4000-8000-000000000001';
         $initialStock = (float) ($validated['current_stock'] ?? 0);
 
         $exists = ProductInventory::query()
             ->where('product_guid', $validated['product_guid'])
-            ->where('id_cabang', $idCabang)
+            ->where('guid_cabang', $guidCabang)
             ->exists();
 
         if ($exists) {
@@ -66,7 +68,7 @@ class InventoryPageController extends Controller
         $inventory = ProductInventory::query()->create([
             'guid' => (string) Str::uuid(),
             'product_guid' => $validated['product_guid'],
-            'id_cabang' => $idCabang,
+            'guid_cabang' => $guidCabang,
             'unit' => $validated['unit'] ?? 'pcs',
             'current_stock' => $initialStock,
             'minimum_stock' => $validated['minimum_stock'] ?? 0,
@@ -93,11 +95,11 @@ class InventoryPageController extends Controller
     {
         $inventory = ProductInventory::query()->where('guid', $guid)->firstOrFail();
         $validated = $request->validate($this->rules($inventory));
-        $idCabang = $validated['id_cabang'] ?? 'PUSAT';
+        $guidCabang = $validated['guid_cabang'] ?? 'aaaaaaaa-aaaa-4000-8000-000000000001';
 
         $duplicate = ProductInventory::query()
             ->where('product_guid', $validated['product_guid'])
-            ->where('id_cabang', $idCabang)
+            ->where('guid_cabang', $guidCabang)
             ->where('id', '!=', $inventory->id)
             ->exists();
 
@@ -109,7 +111,7 @@ class InventoryPageController extends Controller
 
         $inventory->update([
             'product_guid' => $validated['product_guid'],
-            'id_cabang' => $idCabang,
+            'guid_cabang' => $guidCabang,
             'unit' => $validated['unit'] ?? 'pcs',
             'minimum_stock' => $validated['minimum_stock'] ?? 0,
             'is_active' => $validated['is_active'] ?? false,
@@ -136,7 +138,7 @@ class InventoryPageController extends Controller
 
         $inventory = ProductInventory::query()
             ->where('product_guid', $validated['product_guid'])
-            ->where('id_cabang', 'PUSAT')
+            ->where('guid_cabang', 'aaaaaaaa-aaaa-4000-8000-000000000001')
             ->first();
 
         if (! $inventory) {
@@ -174,6 +176,7 @@ class InventoryPageController extends Controller
     public function historyIndex(Request $request): Response
     {
         $productGuid = $request->input('filter.product_guid');
+        $guidCabang = $request->input('filter.guid_cabang');
         $type = $request->input('filter.type');
         $referenceType = $request->input('filter.reference_type');
         $search = $request->input('filter.search');
@@ -187,6 +190,10 @@ class InventoryPageController extends Controller
 
         if ($productGuid) {
             $query->where('product_guid', $productGuid);
+        }
+
+        if ($guidCabang) {
+            $query->where('guid_cabang', $guidCabang);
         }
 
         if ($type) {
@@ -218,7 +225,8 @@ class InventoryPageController extends Controller
                 'product_name' => $record->inventory?->product?->name ?? '-',
                 'category_name' => $record->inventory?->product?->category?->name,
                 'group_name' => $record->inventory?->product?->group?->name,
-                'id_cabang' => $record->id_cabang,
+                'guid_cabang' => $record->guid_cabang,
+                'cabang_kode' => $this->cabangKode($record->guid_cabang),
                 'type' => $record->type,
                 'qty' => (float) $record->qty,
                 'stock_before' => (float) $record->stock_before,
@@ -240,6 +248,7 @@ class InventoryPageController extends Controller
         return Inertia::render('Inventory/History', [
             'title' => 'Riwayat Stok',
             'server_time' => now()->format('l, d F Y at h:i A'),
+            'cabangs' => Cabang::listActive(),
             'history' => $history->items(),
             'pagination' => [
                 'total' => $history->total(),
@@ -253,6 +262,7 @@ class InventoryPageController extends Controller
             ]),
             'filters' => [
                 'product_guid' => $productGuid ?? '',
+                'guid_cabang' => $guidCabang ?? '',
                 'type' => $type ?? '',
                 'reference_type' => $referenceType ?? '',
                 'search' => $search ?? '',
@@ -294,6 +304,7 @@ class InventoryPageController extends Controller
         return Inertia::render('Inventory/History', [
             'title' => 'Riwayat Stok',
             'server_time' => now()->format('l, d F Y at h:i A'),
+            'cabangs' => Cabang::listActive(),
             'inventory' => $this->inventoryData($inventory),
             'history' => $history,
         ]);
@@ -303,12 +314,27 @@ class InventoryPageController extends Controller
     {
         return [
             'product_guid' => ['required', 'string', Rule::exists(Product::class, 'guid')],
-            'id_cabang' => ['nullable', 'string', 'max:50'],
+            'guid_cabang' => ['nullable', 'string', 'max:50'],
             'unit' => ['nullable', 'string', 'max:20'],
             'current_stock' => ['nullable', 'numeric', 'min:0'],
             'minimum_stock' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ];
+    }
+
+    private ?\Illuminate\Support\Collection $cabangMap = null;
+
+    private function cabangKode(?string $guid): string
+    {
+        if (! $guid) {
+            return '-';
+        }
+
+        if ($this->cabangMap === null) {
+            $this->cabangMap = Cabang::pluck('kode', 'guid');
+        }
+
+        return $this->cabangMap[$guid] ?? $guid;
     }
 
     private function inventoryData(ProductInventory $inventory): array
@@ -320,7 +346,8 @@ class InventoryPageController extends Controller
             'product_price' => $inventory->product?->price ?? 0,
             'category_name' => $inventory->product?->category?->name,
             'group_name' => $inventory->product?->group?->name,
-            'id_cabang' => $inventory->id_cabang,
+            'guid_cabang' => $inventory->guid_cabang,
+            'cabang_kode' => $this->cabangKode($inventory->guid_cabang),
             'unit' => $inventory->unit,
             'current_stock' => $inventory->current_stock,
             'minimum_stock' => $inventory->minimum_stock,

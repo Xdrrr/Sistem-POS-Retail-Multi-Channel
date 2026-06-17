@@ -68,6 +68,7 @@ class HandleInertiaRequests extends Middleware
 
         return [
             'guid' => $user->guid,
+            'guid_cabang' => $user->guid_cabang,
             'username' => $user->username,
             'role' => $user->role?->name,
             'url_image' => $user->url_image,

@@ -195,7 +195,8 @@ Mendapatkan daftar riwayat mutasi stok dengan filter dan pagination.
                             "name": "nasi"
                         }
                     },
-                    "id_cabang": "PUSAT",
+                    "guid_cabang": "aaaaaaaa-aaaa-4000-8000-000000000001",
+                    "cabang_kode": "PUSAT",
                     "type": "out",
                     "qty": 10,
                     "stock_before": 50,
@@ -232,7 +233,8 @@ Mendapatkan daftar riwayat mutasi stok dengan filter dan pagination.
 | `inventory_guid` | string (UUID) | GUID inventory terkait |
 | `product_name` | string | Nama produk (denormalisasi) |
 | `product` | object or null | `{ guid, name, category: { guid, name }, group: { guid, name } }` |
-| `id_cabang` | string | Kode cabang |
+| `guid_cabang` | string (UUID) | GUID cabang |
+| `cabang_kode` | string | Kode cabang (PUSAT, CBG1, dst) |
 | `type` | string | `in` / `out` / `adjustment` |
 | `qty` | float | Jumlah mutasi (selalu positif) |
 | `stock_before` | float | Stok sebelum mutasi |
@@ -252,6 +254,8 @@ Table: `product.inventory_history`
 Important constraints:
 - `guid` unique.
 - `inventory_id` references `product.inventories.guid`.
+- `product_guid` references `product.products.guid`.
+- `guid_cabang` references `authentication.cabang.guid`.
 - `created_by` references `authentication.users.guid`.
 - `user_guid_reff` references `authentication.users.guid`.
-- Indexes on: `inventory_id`, `product_guid`, `id_cabang`, `reference_type`, `reference_id`, `is_active`, `created_at`, `user_guid_reff`.
+- Indexes on: `inventory_id`, `product_guid`, `guid_cabang`, `reference_type`, `reference_id`, `is_active`, `created_at`, `user_guid_reff`.

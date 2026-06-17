@@ -215,9 +215,17 @@ roles
   ├── name (Superadmin, Owner, Manager, Cashier, Users)
   └── is_default (Users = true)
 
+cabang
+  ├── id, guid (uuid)
+  ├── kode (PUSAT, CBG1, CBG2)
+  ├── nama (Pusat, Cabang 1, Cabang 2)
+  ├── alamat (nullable)
+  └── is_active
+
 users
   ├── id, guid (uuid)
   ├── role_id → roles.id
+  ├── guid_cabang → cabang.guid
   ├── username, password, salt (SHA-256 custom)
   ├── is_active, last_login
   └── url_image, fcm_token
@@ -244,10 +252,12 @@ groups
 
 products
   ├── id, guid (uuid)
+  ├── sku (unique, nullable)
   ├── category_guid → categories.guid
   ├── group_guid → groups.guid
   ├── name, description
   ├── price (decimal 15,2)
+  ├── guid_cabang → cabang.guid (nullable)
   └── is_active
 ```
 
@@ -264,6 +274,7 @@ orders
   ├── order_number (unique)
   ├── shift_id → orders.shifts.id (nullable)
   ├── user_id → authentication.users.id (nullable)
+  ├── guid_cabang → authentication.cabang.guid (nullable)
   ├── customer_name, customer_phone, table_number
   ├── order_type (dine_in/takeaway/delivery)
   ├── status (draft/open/completed/cancelled)
@@ -295,6 +306,7 @@ shifts
   ├── id, guid (uuid)
   ├── user_id → authentication.users.id
   ├── user_guid → authentication.users.guid
+  ├── guid_cabang → authentication.cabang.guid (nullable)
   ├── shift_number (SH-{Ymd}-{NNN}, unique)
   ├── opened_at (dari tablet)
   ├── closed_at (dari tablet, nullable)
@@ -629,6 +641,7 @@ Riwayat mutasi stok disimpan di `product.inventory_history`. Setiap perubahan `c
 | `type` | `in` (stok masuk), `out` (stok keluar), `adjustment` (penyesuaian) |
 | `qty` | Selalu positif |
 | `stock_before` / `stock_after` | Snapshot stok sebelum dan sesudah mutasi |
+| `guid_cabang` | UUID GUID cabang (FK → `authentication.cabang.guid`) |
 | `reference_type` | `order` (pesanan selesai), `manual_adjustment` (admin) |
 | `reference_id` | GUID dari referensi (order_guid) |
 | `created_by` | User yang melakukan mutasi |
@@ -668,7 +681,7 @@ Riwayat mutasi stok disimpan di `product.inventory_history`. Setiap perubahan `c
 OrderPageController@complete():
   order->status = completed
   foreach order->items:
-    inventory = ProductInventory::where product_guid, id_cabang
+    inventory = ProductInventory::where product_guid, guid_cabang
     InventoryService::adjustStock(
       inventory  = inventory,
       type       = 'out',
@@ -701,7 +714,7 @@ User klik "Selesai" (complete)
         ├── Loop order_items
         │     │
         │     ▼
-        │   Cari inventory (product_guid, id_cabang)
+        │   Cari inventory (product_guid, guid_cabang)
         │     │
         │     ├── Cek apakah sudah ada history order ini?
         │     │     YES → skip (idempotent)

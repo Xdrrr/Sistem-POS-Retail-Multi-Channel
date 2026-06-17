@@ -75,6 +75,7 @@ class ProductReportQuery extends ReportQuery
             ->groupBy('oi.product_guid', 'oi.product_name', 'c.name', 'g.name');
 
         $this->applyDateRange($query, $filters, 'o.ordered_at');
+        $this->applyInFilter($query, $filters, 'guid_cabang', 'o.guid_cabang');
         $this->applyInFilter($query, $filters, 'category_guids', 'c.guid');
         $this->applyInFilter($query, $filters, 'group_guids', 'g.guid');
         $this->applyInFilter($query, $filters, 'statuses', 'o.status');

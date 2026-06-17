@@ -104,6 +104,7 @@ class ShiftSeeder extends Seeder
                 'guid' => Shift::query()->where('shift_number', $number)->value('guid') ?? (string) Str::uuid(),
                 'user_id' => $user->id,
                 'user_guid' => $user->guid,
+                'guid_cabang' => 'aaaaaaaa-aaaa-4000-8000-000000000001',
                 'opened_at' => $openedAt,
                 'closed_at' => $closedAt,
                 'work_hours' => $workHours,

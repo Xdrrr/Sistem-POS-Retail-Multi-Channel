@@ -159,7 +159,7 @@ class OrderPageController extends Controller
             foreach ($order->items as $item) {
                 $inventory = ProductInventory::query()
                     ->where('product_guid', $item->product_guid)
-                    ->where('id_cabang', 'PUSAT')
+                    ->where('guid_cabang', 'aaaaaaaa-aaaa-4000-8000-000000000001')
                     ->first();
 
                 if (! $inventory) {
@@ -209,7 +209,7 @@ class OrderPageController extends Controller
             foreach ($order->items as $item) {
                 $inventory = ProductInventory::query()
                     ->where('product_guid', $item->product_guid)
-                    ->where('id_cabang', 'PUSAT')
+                    ->where('guid_cabang', 'aaaaaaaa-aaaa-4000-8000-000000000001')
                     ->first();
 
                 if (! $inventory) {

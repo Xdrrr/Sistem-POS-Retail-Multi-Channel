@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(ApiClientSeeder::class);
         $this->call(AuthenticationRoleSeeder::class);
+        $this->call(CabangSeeder::class);
         $this->call(AuthenticationUserSeeder::class);
         $this->call(CatalogSeeder::class);
         $this->call(InventoryHistorySeeder::class);

@@ -72,6 +72,7 @@ class CustomerReportQuery extends ReportQuery
             ->groupByRaw("COALESCE(NULLIF(o.customer_name, ''), 'Walk-in'), COALESCE(NULLIF(o.customer_phone, ''), '-')");
 
         $this->applyDateRange($query, $filters, 'o.ordered_at');
+        $this->applyInFilter($query, $filters, 'guid_cabang', 'o.guid_cabang');
         $this->applySearch($query, $this->filter($filters, 'customer_search'), ['o.customer_name']);
         $this->applySearch($query, $this->filter($filters, 'customer_phone'), ['o.customer_phone']);
 

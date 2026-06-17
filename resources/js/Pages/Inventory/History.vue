@@ -7,10 +7,13 @@ import AppSidebar from '../../Components/AppSidebar.vue';
 const props = defineProps({
     history: { type: Array, default: () => [] },
     pagination: { type: Object, default: () => ({ total: 0, per_page: 20, current_page: 1, last_page: 1 }) },
+    cabangs: { type: Array, default: () => [] },
     products: { type: Array, default: () => [] },
     filters: { type: Object, default: () => ({}) },
     serverTime: { type: String, default: '' },
 });
+
+
 
 const formatNumber = (value) => new Intl.NumberFormat('id-ID', {
     maximumFractionDigits: 2,
@@ -68,6 +71,7 @@ const applyFilters = () => {
 
 const localFilters = reactive({
     search: props.filters.search || '',
+    guid_cabang: props.filters.guid_cabang || '',
     product_guid: props.filters.product_guid || '',
     type: props.filters.type || '',
     reference_type: props.filters.reference_type || '',
@@ -79,6 +83,7 @@ const localFilters = reactive({
 
 const resetFilters = () => {
     localFilters.search = '';
+    localFilters.guid_cabang = '';
     localFilters.product_guid = '';
     localFilters.type = '';
     localFilters.reference_type = '';
@@ -193,6 +198,14 @@ const submitAdjust = () => {
                     </label>
 
                     <label>
+                        <span>Cabang</span>
+                        <select v-model="localFilters.guid_cabang" @change="applyFilters">
+                            <option value="">Semua</option>
+                            <option v-for="c in cabangs" :key="c.guid" :value="c.guid">{{ c.kode }} - {{ c.nama }}</option>
+                        </select>
+                    </label>
+
+                    <label>
                         <span>Produk</span>
                         <select v-model="localFilters.product_guid" @change="applyFilters">
                             <option value="">Semua</option>
@@ -291,7 +304,7 @@ const submitAdjust = () => {
                                             <span>{{ item.category_name || '-' }} / {{ item.group_name || '-' }}</span>
                                         </Link>
                                     </td>
-                                    <td>{{ item.id_cabang }}</td>
+                                    <td>{{ item.cabang_kode || '-' }}</td>
                                     <td>
                                         <span class="type-badge" :class="typeClass(item.type)">
                                             <span class="material-symbols-outlined">{{ typeIcon(item.type) }}</span>

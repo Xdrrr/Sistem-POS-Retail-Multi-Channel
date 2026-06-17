@@ -16,6 +16,7 @@ class ReportExport extends Model
         'row_count',
         'error_message',
         'requested_by',
+        'guid_cabang',
         'started_at',
         'finished_at',
         'expired_at',

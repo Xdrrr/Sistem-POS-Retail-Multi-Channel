@@ -22,8 +22,8 @@ class InventoryController extends Controller
             'filter.guid' => ['nullable', 'string'],
             'filter.set_product_guid' => ['nullable', 'boolean'],
             'filter.product_guid' => ['nullable', 'string'],
-            'filter.set_id_cabang' => ['nullable', 'boolean'],
-            'filter.id_cabang' => ['nullable', 'string', 'max:50'],
+            'filter.set_guid_cabang' => ['nullable', 'boolean'],
+            'filter.guid_cabang' => ['nullable', 'string', 'max:50'],
             'filter.set_unit' => ['nullable', 'boolean'],
             'filter.unit' => ['nullable', 'string', 'max:20'],
             'filter.set_is_active' => ['nullable', 'boolean'],
@@ -32,7 +32,7 @@ class InventoryController extends Controller
             'filter.low_stock' => ['nullable', 'boolean'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
             'page' => ['nullable', 'integer', 'min:1'],
-            'order' => ['nullable', 'string', 'in:product_name,id_cabang,unit,current_stock,minimum_stock,is_active,created_at,updated_at'],
+            'order' => ['nullable', 'string', 'in:product_name,guid_cabang,unit,current_stock,minimum_stock,is_active,created_at,updated_at'],
             'sort' => ['nullable', 'string', 'in:ASC,DESC'],
         ]);
 
@@ -45,7 +45,7 @@ class InventoryController extends Controller
         $query = ProductInventory::query()
             ->with(['product.category', 'product.group']);
 
-        foreach (['guid', 'product_guid', 'id_cabang', 'unit', 'is_active'] as $field) {
+        foreach (['guid', 'product_guid', 'guid_cabang', 'unit', 'is_active'] as $field) {
             if (($filter["set_{$field}"] ?? false) === true && array_key_exists($field, $filter)) {
                 $query->where($field, $filter[$field]);
             }
@@ -80,7 +80,7 @@ class InventoryController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'product_guid' => ['required', 'string', Rule::exists(Product::class, 'guid')],
-            'id_cabang' => ['nullable', 'string', 'max:50'],
+            'guid_cabang' => ['nullable', 'string', 'max:50'],
             'unit' => ['nullable', 'string', 'max:20'],
             'current_stock' => ['nullable', 'numeric', 'min:0'],
             'minimum_stock' => ['nullable', 'numeric', 'min:0'],
@@ -92,12 +92,12 @@ class InventoryController extends Controller
         }
 
         $validated = $validator->validated();
-        $idCabang = $validated['id_cabang'] ?? 'PUSAT';
+        $guidCabang = $validated['guid_cabang'] ?? 'aaaaaaaa-aaaa-4000-8000-000000000001';
         $initialStock = (float) ($validated['current_stock'] ?? 0);
 
         $exists = ProductInventory::query()
             ->where('product_guid', $validated['product_guid'])
-            ->where('id_cabang', $idCabang)
+            ->where('guid_cabang', $guidCabang)
             ->exists();
 
         if ($exists) {
@@ -107,7 +107,7 @@ class InventoryController extends Controller
         $inventory = ProductInventory::query()->create([
             'guid' => (string) Str::uuid(),
             'product_guid' => $validated['product_guid'],
-            'id_cabang' => $idCabang,
+            'guid_cabang' => $guidCabang,
             'unit' => $validated['unit'] ?? 'pcs',
             'current_stock' => $initialStock,
             'minimum_stock' => $validated['minimum_stock'] ?? 0,
@@ -157,7 +157,7 @@ class InventoryController extends Controller
         $validator = Validator::make($request->all(), [
             'guid' => ['required', 'string', Rule::exists(ProductInventory::class, 'guid')],
             'product_guid' => ['required', 'string', Rule::exists(Product::class, 'guid')],
-            'id_cabang' => ['nullable', 'string', 'max:50'],
+            'guid_cabang' => ['nullable', 'string', 'max:50'],
             'unit' => ['nullable', 'string', 'max:20'],
             'minimum_stock' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
@@ -168,11 +168,11 @@ class InventoryController extends Controller
         }
 
         $validated = $validator->validated();
-        $idCabang = $validated['id_cabang'] ?? 'PUSAT';
+        $guidCabang = $validated['guid_cabang'] ?? 'aaaaaaaa-aaaa-4000-8000-000000000001';
 
         $duplicate = ProductInventory::query()
             ->where('product_guid', $validated['product_guid'])
-            ->where('id_cabang', $idCabang)
+            ->where('guid_cabang', $guidCabang)
             ->where('id', '!=', $inventory->id)
             ->exists();
 
@@ -182,7 +182,7 @@ class InventoryController extends Controller
 
         $oldData = [
             'product_guid' => $inventory->product_guid,
-            'id_cabang' => $inventory->id_cabang,
+            'guid_cabang' => $inventory->guid_cabang,
             'unit' => $inventory->unit,
             'minimum_stock' => $inventory->minimum_stock,
             'is_active' => $inventory->is_active,
@@ -190,14 +190,14 @@ class InventoryController extends Controller
 
         $inventory->update([
             'product_guid' => $validated['product_guid'],
-            'id_cabang' => $idCabang,
+            'guid_cabang' => $guidCabang,
             'unit' => $validated['unit'] ?? 'pcs',
             'minimum_stock' => $validated['minimum_stock'] ?? 0,
             'is_active' => $validated['is_active'] ?? $inventory->is_active,
         ]);
 
         $changes = [];
-        foreach (['id_cabang', 'unit', 'minimum_stock', 'is_active'] as $field) {
+        foreach (['guid_cabang', 'unit', 'minimum_stock', 'is_active'] as $field) {
             if ($oldData[$field] != $inventory->{$field}) {
                 $changes[] = "{$field}: {$oldData[$field]} → {$inventory->{$field}}";
             }
@@ -278,7 +278,7 @@ class InventoryController extends Controller
                     'name' => $inventory->product->group->name,
                 ] : null,
             ] : null,
-            'id_cabang' => $inventory->id_cabang,
+            'guid_cabang' => $inventory->guid_cabang,
             'unit' => $inventory->unit,
             'current_stock' => $inventory->current_stock,
             'minimum_stock' => $inventory->minimum_stock,

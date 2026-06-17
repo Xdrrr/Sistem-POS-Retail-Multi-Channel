@@ -6,6 +6,7 @@ import AppSidebar from '../../Components/AppSidebar.vue';
 
 const props = defineProps({
     reportTypes: { type: Array, default: () => [] },
+    cabangs: { type: Array, default: () => [] },
     serverTime: { type: String, default: () => '' },
 });
 

@@ -8,6 +8,7 @@ const props = defineProps({
     reportTypes: { type: Array, default: () => [] },
     categories: { type: Array, default: () => [] },
     groups: { type: Array, default: () => [] },
+    cabangs: { type: Array, default: () => [] },
     serverTime: { type: String, default: () => '' },
     appTimezone: { type: String, default: 'UTC' },
     serverDatetime: { type: String, default: () => '' },
@@ -28,6 +29,7 @@ const serverDate = props.serverDatetime ? props.serverDatetime.slice(0, 10) : ne
 const filters = reactive({
     from_datetime: serverDate + 'T00:00',
     to_datetime: props.serverDatetime || new Date().toISOString().slice(0, 16),
+    guid_cabang: '',
     statuses: [],
     order_types: [],
     payment_statuses: [],
@@ -97,6 +99,8 @@ const buildFilter = () => {
     if (hasStatusFilter.value) put('statuses', filters.statuses);
     if (hasPaymentStatusFilter.value) put('payment_statuses', filters.payment_statuses);
     if (hasOrderTypeFilter.value) put('order_types', filters.order_types);
+    put('guid_cabang', filters.guid_cabang);
+
     if (hasMethodFilter.value) {
         put('methods', filters.methods);
         put('statuses', filters.statuses);
@@ -183,6 +187,7 @@ const resetFilters = () => {
     const sd = props.serverDatetime ? props.serverDatetime.slice(0, 10) : new Date().toISOString().slice(0, 10);
     filters.from_datetime = sd + 'T00:00';
     filters.to_datetime = props.serverDatetime || new Date().toISOString().slice(0, 16);
+    filters.guid_cabang = '';
     filters.statuses = [];
     filters.order_types = [];
     filters.payment_statuses = [];
@@ -204,8 +209,12 @@ const resetFilters = () => {
 
 const changeType = (type) => {
     activeType.value = type;
+    rows.value = [];
+    summary.value = {};
     filters.page = 1;
     filters.order = '';
+    clearTimeout(filterTimeout);
+    filterTimeout = setTimeout(loadReport, 100);
 };
 
 const changePage = (page) => {
@@ -271,6 +280,14 @@ onMounted(loadReport);
                     <div class="filter-panel__head">
                         <strong>Filter</strong>
                     </div>
+
+                    <label>
+                        <span>Cabang</span>
+                        <select v-model="filters.guid_cabang">
+                            <option value="">Semua</option>
+                            <option v-for="c in cabangs" :key="c.guid" :value="c.guid">{{ c.kode }} - {{ c.nama }}</option>
+                        </select>
+                    </label>
 
                     <div v-if="hasDateFilter">
                         <div>

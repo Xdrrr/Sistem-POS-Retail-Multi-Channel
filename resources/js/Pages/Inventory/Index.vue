@@ -6,13 +6,14 @@ import AppSidebar from '../../Components/AppSidebar.vue';
 
 const props = defineProps({
     inventories: { type: Array, default: () => [] },
+    cabangs: { type: Array, default: () => [] },
     products: { type: Array, default: () => [] },
     serverTime: { type: String, default: '' },
 });
 
 const filters = reactive({
     search: '',
-    id_cabang: '',
+    guid_cabang: '',
     status: '',
     stock: 'all',
     limit: 20,
@@ -26,7 +27,7 @@ const currentPage = ref(1);
 
 const form = useForm({
     product_guid: '',
-    id_cabang: 'PUSAT',
+    guid_cabang: 'aaaaaaaa-aaaa-4000-8000-000000000001',
     unit: 'pcs',
     current_stock: 0,
     minimum_stock: 0,
@@ -40,7 +41,7 @@ const adjustForm = useForm({
     notes: '',
 });
 
-const branches = computed(() => [...new Set(props.inventories.map((item) => item.id_cabang).filter(Boolean))].sort());
+const branches = computed(() => props.cabangs);
 
 const filteredInventories = computed(() => {
     const keyword = filters.search.trim().toLowerCase();
@@ -49,7 +50,7 @@ const filteredInventories = computed(() => {
             || item.product_name?.toLowerCase().includes(keyword)
             || item.category_name?.toLowerCase().includes(keyword)
             || item.group_name?.toLowerCase().includes(keyword);
-        const matchesBranch = !filters.id_cabang || item.id_cabang === filters.id_cabang;
+        const matchesBranch = !filters.guid_cabang || item.guid_cabang === filters.guid_cabang;
         const matchesStatus = filters.status === '' || String(item.is_active) === filters.status;
         const matchesStock = filters.stock === 'all'
             || (filters.stock === 'low' && item.is_low_stock)
@@ -88,7 +89,7 @@ const paginatedInventories = computed(() => {
 });
 
 watch(
-    () => [filters.search, filters.id_cabang, filters.status, filters.stock, filters.limit, filters.sort],
+    () => [filters.search, filters.guid_cabang, filters.status, filters.stock, filters.limit, filters.sort],
     () => {
         currentPage.value = 1;
     },
@@ -100,7 +101,7 @@ const formatNumber = (value) => new Intl.NumberFormat('id-ID', {
 
 const resetFilters = () => {
     filters.search = '';
-    filters.id_cabang = '';
+    filters.guid_cabang = '';
     filters.status = '';
     filters.stock = 'all';
     filters.limit = 20;
@@ -111,7 +112,7 @@ const resetForm = () => {
     form.reset();
     form.clearErrors();
     form.product_guid = '';
-    form.id_cabang = 'PUSAT';
+    form.guid_cabang = 'aaaaaaaa-aaaa-4000-8000-000000000001';
     form.unit = 'pcs';
     form.current_stock = 0;
     form.minimum_stock = 0;
@@ -135,7 +136,7 @@ const openEdit = (item) => {
     adjustMode.value = false;
     editing.value = item;
     form.product_guid = item.product_guid ?? '';
-    form.id_cabang = item.id_cabang ?? 'PUSAT';
+    form.guid_cabang = item.guid_cabang ?? 'aaaaaaaa-aaaa-4000-8000-000000000001';
     form.unit = item.unit ?? 'pcs';
     form.minimum_stock = item.minimum_stock ?? 0;
     form.is_active = Boolean(item.is_active);
@@ -258,9 +259,9 @@ const changePage = (page) => {
 
                     <label>
                         <span>Cabang</span>
-                        <select v-model="filters.id_cabang">
+                        <select v-model="filters.guid_cabang">
                             <option value="">Semua</option>
-                            <option v-for="branch in branches" :key="branch" :value="branch">{{ branch }}</option>
+                            <option v-for="c in branches" :key="c.guid" :value="c.guid">{{ c.kode }} - {{ c.nama }}</option>
                         </select>
                     </label>
 
@@ -343,7 +344,7 @@ const changePage = (page) => {
                                         <strong>{{ item.product_name }}</strong>
                                         <span>{{ item.category_name || '-' }} / {{ item.group_name || '-' }}</span>
                                     </td>
-                                    <td>{{ item.id_cabang }}</td>
+                                    <td>{{ item.cabang_kode }}</td>
                                     <td>
                                         <strong>{{ formatNumber(item.current_stock) }}</strong>
                                         <span v-if="item.is_low_stock" class="warning-text">Butuh restock</span>
@@ -448,8 +449,8 @@ const changePage = (page) => {
 
                         <label>
                             <span>Cabang</span>
-                            <input v-model="form.id_cabang" type="text" placeholder="PUSAT" />
-                            <small v-if="form.errors.id_cabang">{{ form.errors.id_cabang }}</small>
+                            <input v-model="form.guid_cabang" type="text" placeholder="PUSAT" />
+                            <small v-if="form.errors.guid_cabang">{{ form.errors.guid_cabang }}</small>
                         </label>
 
                         <label>

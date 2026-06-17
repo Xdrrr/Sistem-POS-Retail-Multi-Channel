@@ -4,7 +4,7 @@ Base URL: `/inventory`
 
 Semua endpoint inventory menggunakan middleware `EnsureApiToken`.
 
-Inventory disimpan pada tabel `product.inventories`. Modul ini dipakai untuk mengelola stok produk per cabang. Untuk fase awal POS restoran, seluruh stok memakai satuan `pcs` dan cabang default `PUSAT`.
+Inventory disimpan pada tabel `product.inventories`. Modul ini dipakai untuk mengelola stok produk per cabang. Untuk fase awal POS restoran, seluruh stok memakai satuan `pcs` dan cabang default `aaaaaaaa-aaaa-4000-8000-000000000001` (Pusat).
 
 ### Daftar Endpoint
 
@@ -33,8 +33,8 @@ Mendapatkan daftar stok produk.
         "guid": "inventory-guid-here",
         "set_product_guid": false,
         "product_guid": "33333333-3333-4333-8333-000000000001",
-        "set_id_cabang": true,
-        "id_cabang": "PUSAT",
+        "set_guid_cabang": true,
+        "guid_cabang": "aaaaaaaa-aaaa-4000-8000-000000000001",
         "set_unit": false,
         "unit": "pcs",
         "set_is_active": true,
@@ -58,8 +58,8 @@ Mendapatkan daftar stok produk.
 | `filter.guid` | nullable, string |
 | `filter.set_product_guid` | nullable, boolean |
 | `filter.product_guid` | nullable, string, exists:product.products,guid |
-| `filter.set_id_cabang` | nullable, boolean |
-| `filter.id_cabang` | nullable, string, max:50 |
+| `filter.set_guid_cabang` | nullable, boolean |
+| `filter.guid_cabang` | nullable, string, max:50 |
 | `filter.set_unit` | nullable, boolean |
 | `filter.unit` | nullable, string, max:20 |
 | `filter.set_is_active` | nullable, boolean |
@@ -68,13 +68,13 @@ Mendapatkan daftar stok produk.
 | `filter.low_stock` | nullable, boolean |
 | `limit` | nullable, integer, min:1, max:100 (default: 20) |
 | `page` | nullable, integer, min:1 (default: 1) |
-| `order` | nullable, string, in:product_name,id_cabang,unit,current_stock,minimum_stock,is_active,created_at,updated_at |
+| `order` | nullable, string, in:product_name,guid_cabang,unit,current_stock,minimum_stock,is_active,created_at,updated_at |
 | `sort` | nullable, string, in:ASC,DESC |
 
 ### Logic
 
 - Jika `set_low_stock = true` dan `low_stock = true`, tampilkan stok dengan `current_stock <= minimum_stock`.
-- Jika `set_id_cabang = false`, controller boleh memakai cabang default user login. Untuk fase awal gunakan `PUSAT`.
+- Jika `set_guid_cabang = false`, controller boleh memakai cabang default user login. Default: `aaaaaaaa-aaaa-4000-8000-000000000001` (Pusat).
 - Sorting wajib memakai whitelist kolom, jangan langsung memakai input `order` ke `orderBy`.
 
 ### Response (200)
@@ -99,7 +99,7 @@ Mendapatkan daftar stok produk.
                         "name": "nasi"
                     }
                 },
-                "id_cabang": "PUSAT",
+                "guid_cabang": "aaaaaaaa-aaaa-4000-8000-000000000001",
                 "unit": "pcs",
                 "current_stock": 100,
                 "minimum_stock": 10,
@@ -124,7 +124,7 @@ Membuat data stok untuk produk pada cabang tertentu.
 ```json
 {
     "product_guid": "33333333-3333-4333-8333-000000000001",
-    "id_cabang": "PUSAT",
+    "guid_cabang": "aaaaaaaa-aaaa-4000-8000-000000000001",
     "unit": "pcs",
     "current_stock": 50,
     "minimum_stock": 10,
@@ -137,7 +137,7 @@ Membuat data stok untuk produk pada cabang tertentu.
 | Field | Rule |
 |---|---|
 | `product_guid` | required, string, exists:product.products,guid |
-| `id_cabang` | nullable, string, max:50 (default: PUSAT) |
+| `guid_cabang` | nullable, string, max:50 (default: aaaaaaaa-aaaa-4000-8000-000000000001 (Pusat)) |
 | `unit` | nullable, string, max:20 (default: pcs) |
 | `current_stock` | nullable, numeric, min:0 (default: 0) |
 | `minimum_stock` | nullable, numeric, min:0 (default: 0) |
@@ -145,9 +145,9 @@ Membuat data stok untuk produk pada cabang tertentu.
 
 ### Logic
 
-- Kombinasi `product_guid` dan `id_cabang` harus unik.
+- Kombinasi `product_guid` dan `guid_cabang` harus unik.
 - Jika `current_stock` diisi > 0, otomatis tercatat di `inventory_history` dengan `type=in`, `notes=add stok`.
-- Untuk fase awal, `id_cabang` default adalah `PUSAT`.
+- Untuk fase awal, `guid_cabang` default adalah `aaaaaaaa-aaaa-4000-8000-000000000001` (Pusat).
 - Untuk fase awal POS restoran, `unit` default adalah `pcs`.
 
 ### Response (201)
@@ -163,7 +163,7 @@ Membuat data stok untuk produk pada cabang tertentu.
                 "guid": "33333333-3333-4333-8333-000000000001",
                 "name": "Nasi Goreng Special"
             },
-            "id_cabang": "PUSAT",
+            "guid_cabang": "aaaaaaaa-aaaa-4000-8000-000000000001",
             "unit": "pcs",
             "current_stock": 50,
             "minimum_stock": 10,
@@ -218,7 +218,7 @@ Membuat data stok untuk produk pada cabang tertentu.
                     "name": "nasi"
                 }
             },
-            "id_cabang": "PUSAT",
+            "guid_cabang": "aaaaaaaa-aaaa-4000-8000-000000000001",
             "unit": "pcs",
             "current_stock": 100,
             "minimum_stock": 10,
@@ -259,7 +259,7 @@ Mengubah data inventory selain stok (produk, cabang, satuan, minimum stok, statu
 {
     "guid": "7c5b5a21-f805-45cb-8f76-9c41d741ca91",
     "product_guid": "33333333-3333-4333-8333-000000000001",
-    "id_cabang": "PUSAT",
+    "guid_cabang": "aaaaaaaa-aaaa-4000-8000-000000000001",
     "unit": "pcs",
     "minimum_stock": 15,
     "is_active": true
@@ -272,7 +272,7 @@ Mengubah data inventory selain stok (produk, cabang, satuan, minimum stok, statu
 |---|---|
 | `guid` | required, string, exists:product.inventories,guid |
 | `product_guid` | required, string, exists:product.products,guid |
-| `id_cabang` | nullable, string, max:50 |
+| `guid_cabang` | nullable, string, max:50 |
 | `unit` | nullable, string, max:20 |
 | `minimum_stock` | nullable, numeric, min:0 |
 | `is_active` | nullable, boolean |
@@ -280,8 +280,8 @@ Mengubah data inventory selain stok (produk, cabang, satuan, minimum stok, statu
 ### Logic
 
 - `current_stock` **tidak termasuk** dalam endpoint ini. Stok hanya diubah via `POST /inventory/adjust`.
-- Jika `product_guid` atau `id_cabang` diubah, pastikan kombinasi baru tidak bentrok dengan inventory lain.
-- Setiap perubahan field (id_cabang, unit, minimum_stock, is_active) **otomatis** dicatat ke `inventory_history` dengan `type=adjustment`, `reference_type=manual_adjustment`, dan `user_guid_reff` dari user yang melakukan update.
+- Jika `product_guid` atau `guid_cabang` diubah, pastikan kombinasi baru tidak bentrok dengan inventory lain.
+- Setiap perubahan field (guid_cabang, unit, minimum_stock, is_active) **otomatis** dicatat ke `inventory_history` dengan `type=adjustment`, `reference_type=manual_adjustment`, dan `user_guid_reff` dari user yang melakukan update.
 
 ### Response (200)
 
@@ -296,7 +296,7 @@ Mengubah data inventory selain stok (produk, cabang, satuan, minimum stok, statu
                 "guid": "33333333-3333-4333-8333-000000000001",
                 "name": "Nasi Goreng Special"
             },
-            "id_cabang": "PUSAT",
+            "guid_cabang": "aaaaaaaa-aaaa-4000-8000-000000000001",
             "unit": "pcs",
             "current_stock": 125,
             "minimum_stock": 15,
@@ -415,7 +415,8 @@ Gunakan `POST /inventory/adjust` untuk penyesuaian stok manual. Setiap perubahan
 |---|---|---|
 | `guid` | string (UUID) | Unique identifier inventory |
 | `product` | object | Produk yang memiliki stok |
-| `id_cabang` | string | Kode cabang, default `PUSAT` |
+| `guid_cabang` | string (UUID) | GUID cabang, default `aaaaaaaa-aaaa-4000-8000-000000000001` (Pusat) |
+| `cabang_kode` | string | Kode cabang (PUSAT, CBG1, dst) |
 | `unit` | string | Satuan stok, default `pcs` |
 | `current_stock` | float | Stok tersedia saat ini |
 | `minimum_stock` | float | Batas minimum stok |
@@ -442,12 +443,13 @@ Important constraints:
 
 - `guid` unique.
 - `product_guid` references `product.products.guid`.
-- Unique combination: `product_guid`, `id_cabang`.
+- `guid_cabang` references `authentication.cabang.guid`.
+- Unique combination: `product_guid`, `guid_cabang`.
 
 Seeder behavior:
 
 - `CatalogSeeder` membuat inventory untuk semua produk seed.
-- Default `id_cabang`: `PUSAT`.
+- Default `guid_cabang`: `aaaaaaaa-aaaa-4000-8000-000000000001` (Pusat).
 - Default `unit`: `pcs`.
 - Default `current_stock`: `0`.
 - Default `minimum_stock`: `0`.

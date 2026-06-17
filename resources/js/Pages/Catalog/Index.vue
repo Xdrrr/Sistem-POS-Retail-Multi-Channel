@@ -8,6 +8,7 @@ const props = defineProps({
     categories: { type: Array, default: () => [] },
     groups: { type: Array, default: () => [] },
     products: { type: Array, default: () => [] },
+    cabangs: { type: Array, default: () => [] },
     serverTime: {
         type: String,
         default: () => '',
@@ -16,6 +17,7 @@ const props = defineProps({
 
 const filters = reactive({
     search: '',
+    guid_cabang: '',
     category_guids: [],
     group_guids: [],
     is_active: '',
@@ -42,6 +44,9 @@ const filteredProducts = computed(() => {
     }
     if (filters.is_active !== '') {
         items = items.filter((p) => String(p.is_active) === filters.is_active);
+    }
+    if (filters.guid_cabang) {
+        items = items.filter((p) => p.guid_cabang === filters.guid_cabang);
     }
     return sortByName(items);
 });
@@ -72,6 +77,7 @@ const filteredGroups = computed(() => {
 
 const resetFilters = () => {
     filters.search = '';
+    filters.guid_cabang = '';
     filters.category_guids = [];
     filters.group_guids = [];
     filters.is_active = '';
@@ -365,6 +371,14 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                         <span>Group</span>
                         <select v-model="filters.group_guids" multiple>
                             <option v-for="group in groups" :key="group.guid" :value="group.guid">{{ group.name }}</option>
+                        </select>
+                    </label>
+
+                    <label>
+                        <span>Cabang</span>
+                        <select v-model="filters.guid_cabang">
+                            <option value="">Semua</option>
+                            <option v-for="c in cabangs" :key="c.guid" :value="c.guid">{{ c.kode }} - {{ c.nama }}</option>
                         </select>
                     </label>
 

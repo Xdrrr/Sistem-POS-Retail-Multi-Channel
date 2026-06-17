@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cabang;
 use App\Models\InventoryHistory;
 use App\Models\Product;
 use App\Models\ProductInventory;
@@ -190,7 +191,8 @@ class InventoryAdjustmentController extends Controller
                     'name' => $record->inventory->product->group->name,
                 ] : null,
             ] : null,
-            'id_cabang' => $record->id_cabang,
+            'guid_cabang' => $record->guid_cabang,
+            'cabang_kode' => $this->cabangKode($record->guid_cabang),
             'type' => $record->type,
             'qty' => (float) $record->qty,
             'stock_before' => (float) $record->stock_before,
@@ -205,6 +207,21 @@ class InventoryAdjustmentController extends Controller
             'created_at' => $record->created_at?->toISOString(),
             'updated_at' => $record->updated_at?->toISOString(),
         ];
+    }
+
+    private ?\Illuminate\Support\Collection $cabangMap = null;
+
+    private function cabangKode(?string $guid): string
+    {
+        if (! $guid) {
+            return '-';
+        }
+
+        if ($this->cabangMap === null) {
+            $this->cabangMap = Cabang::pluck('kode', 'guid');
+        }
+
+        return $this->cabangMap[$guid] ?? $guid;
     }
 
     private function authUserGuid(Request $request): ?string

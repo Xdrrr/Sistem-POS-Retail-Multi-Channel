@@ -22,6 +22,7 @@ class AuthenticationUserSeeder extends Seeder
                 [
                     'guid' => (string) Str::uuid(),
                     'role_id' => $role->id,
+                    'guid_cabang' => 'aaaaaaaa-aaaa-4000-8000-000000000001',
                     'password' => $this->passwordHash('wit.id', $salt),
                     'salt' => $salt,
                     'is_active' => true,

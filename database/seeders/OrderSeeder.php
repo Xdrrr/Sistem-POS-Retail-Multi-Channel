@@ -67,6 +67,7 @@ class OrderSeeder extends Seeder
                     ['order_number' => $orderNumber],
                     [
                         'guid' => Order::query()->where('order_number', $orderNumber)->value('guid') ?? (string) Str::uuid(),
+                        'guid_cabang' => 'aaaaaaaa-aaaa-4000-8000-000000000001',
                         'customer_name' => $customer['name'] === 'Walk-in' ? null : $customer['name'],
                         'customer_phone' => $customer['phone'],
                         'table_number' => $slot % 3 === 0 ? null : chr(65 + ($slot % 5)).($slot % 12 + 1),

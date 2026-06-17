@@ -78,6 +78,7 @@ class SalesReportQuery extends ReportQuery
             ->select(['o.id', 'o.order_number', 'o.customer_name', 'o.customer_phone', 'o.table_number', 'o.order_type', 'o.status', 'o.payment_status', 'o.subtotal', 'o.discount_amount', 'o.tax_amount', 'o.total_amount', 'o.ordered_at', 'o.notes']);
 
         $this->applyDateRange($query, $filters, 'o.ordered_at');
+        $this->applyInFilter($query, $filters, 'guid_cabang', 'o.guid_cabang');
         $this->applyInFilter($query, $filters, 'statuses', 'o.status');
         $this->applyInFilter($query, $filters, 'order_types', 'o.order_type');
         $this->applyInFilter($query, $filters, 'payment_statuses', 'o.payment_status');
