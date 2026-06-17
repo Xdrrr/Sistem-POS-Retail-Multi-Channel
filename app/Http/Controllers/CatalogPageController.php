@@ -6,6 +6,7 @@ use App\Models\Cabang;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductGroup;
+use App\Models\ProductInventory;
 use App\Traits\StoresCatalogImages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -147,16 +148,29 @@ class CatalogPageController extends Controller
     public function storeProduct(Request $request): RedirectResponse
     {
         $validated = $request->validate($this->productRules());
+        $productGuid = (string) Str::uuid();
+        $guidCabang = $validated['guid_cabang'] ?? 'aaaaaaaa-aaaa-4000-8000-000000000001';
 
         Product::query()->create([
-            'guid' => (string) Str::uuid(),
+            'guid' => $productGuid,
             'category_guid' => $validated['category_guid'],
             'group_guid' => $validated['group_guid'],
+            'guid_cabang' => $guidCabang,
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'image' => $this->storeCatalogImage($request, 'products'),
             'price' => $validated['price'] ?? 0,
             'is_active' => $validated['is_active'] ?? true,
+        ]);
+
+        ProductInventory::query()->create([
+            'guid' => (string) Str::uuid(),
+            'product_guid' => $productGuid,
+            'guid_cabang' => $guidCabang,
+            'unit' => 'pcs',
+            'current_stock' => 0,
+            'minimum_stock' => 0,
+            'is_active' => true,
         ]);
 
         return redirect()->route('catalog.index');
@@ -166,16 +180,25 @@ class CatalogPageController extends Controller
     {
         $product = Product::query()->where('guid', $guid)->firstOrFail();
         $validated = $request->validate($this->productRules($product));
+        $oldGuidCabang = $product->guid_cabang;
+        $newGuidCabang = $validated['guid_cabang'] ?? $oldGuidCabang;
 
         $product->update([
             'category_guid' => $validated['category_guid'],
             'group_guid' => $validated['group_guid'],
+            'guid_cabang' => $newGuidCabang,
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'image' => $this->storeCatalogImage($request, 'products', $product->image),
             'price' => $validated['price'] ?? 0,
             'is_active' => $validated['is_active'] ?? false,
         ]);
+
+        if ($newGuidCabang !== $oldGuidCabang) {
+            ProductInventory::query()
+                ->where('product_guid', $product->guid)
+                ->update(['guid_cabang' => $newGuidCabang]);
+        }
 
         return redirect()->route('catalog.index');
     }
@@ -194,6 +217,7 @@ class CatalogPageController extends Controller
         return [
             'category_guid' => ['required', 'string', Rule::exists(Category::class, 'guid')],
             'group_guid' => ['required', 'string', Rule::exists(ProductGroup::class, 'guid')],
+            'guid_cabang' => ['nullable', 'string'],
             'name' => ['required', 'string', 'max:150', Rule::unique(Product::class, 'name')->ignore($product?->id)],
             'description' => ['nullable', 'string'],
             'image' => $this->imageRule(),

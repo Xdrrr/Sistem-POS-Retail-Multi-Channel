@@ -102,6 +102,7 @@ const loading = ref(false);
 const productForm = useForm({
     category_guid: '',
     group_guid: '',
+    guid_cabang: '',
     name: '',
     description: '',
     image: null,
@@ -202,6 +203,7 @@ const openEdit = (item) => {
     if (activeTab.value === 'products') {
         productForm.category_guid = item.category_guid ?? '';
         productForm.group_guid = item.group_guid ?? '';
+        productForm.guid_cabang = item.guid_cabang ?? '';
         productForm.name = item.name ?? '';
         productForm.description = item.description ?? '';
         productForm.image = null;
@@ -614,6 +616,14 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                             </option>
                         </select>
                         <small v-if="productForm.errors.group_guid">{{ productForm.errors.group_guid }}</small>
+                    </label>
+                    <label>
+                        <span>Cabang</span>
+                        <select v-model="productForm.guid_cabang">
+                            <option value="">Pilih cabang</option>
+                            <option v-for="c in cabangs" :key="c.guid" :value="c.guid">{{ c.kode }} - {{ c.nama }}</option>
+                        </select>
+                        <small v-if="productForm.errors.guid_cabang">{{ productForm.errors.guid_cabang }}</small>
                     </label>
                     <label class="form-grid__wide">
                         <span>Deskripsi</span>

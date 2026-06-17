@@ -27,7 +27,6 @@ const currentPage = ref(1);
 
 const form = useForm({
     product_guid: '',
-    guid_cabang: 'aaaaaaaa-aaaa-4000-8000-000000000001',
     unit: 'pcs',
     current_stock: 0,
     minimum_stock: 0,
@@ -112,7 +111,6 @@ const resetForm = () => {
     form.reset();
     form.clearErrors();
     form.product_guid = '';
-    form.guid_cabang = 'aaaaaaaa-aaaa-4000-8000-000000000001';
     form.unit = 'pcs';
     form.current_stock = 0;
     form.minimum_stock = 0;
@@ -136,7 +134,6 @@ const openEdit = (item) => {
     adjustMode.value = false;
     editing.value = item;
     form.product_guid = item.product_guid ?? '';
-    form.guid_cabang = item.guid_cabang ?? 'aaaaaaaa-aaaa-4000-8000-000000000001';
     form.unit = item.unit ?? 'pcs';
     form.minimum_stock = item.minimum_stock ?? 0;
     form.is_active = Boolean(item.is_active);
@@ -445,12 +442,6 @@ const changePage = (page) => {
                                 </option>
                             </select>
                             <small v-if="form.errors.product_guid">{{ form.errors.product_guid }}</small>
-                        </label>
-
-                        <label>
-                            <span>Cabang</span>
-                            <input v-model="form.guid_cabang" type="text" placeholder="PUSAT" />
-                            <small v-if="form.errors.guid_cabang">{{ form.errors.guid_cabang }}</small>
                         </label>
 
                         <label>
