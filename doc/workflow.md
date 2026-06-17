@@ -112,6 +112,10 @@ HandleInertiaRequests (global)
 | POST | `/reports/{type}/export` | `ReportController@export` | Buat job export CSV |
 | GET | `/reports/exports/{guid}` | `ReportController@exportStatus` | Cek status export |
 | GET | `/reports/exports/{guid}/download` | `ReportController@download` | Download hasil export |
+| GET | `/reservations` | `TableReservationPageController@index` | Manajemen reservasi meja |
+| POST | `/reservations` | `TableReservationPageController@store` | Buat reservasi |
+| PUT | `/reservations/{guid}` | `TableReservationPageController@update` | Update reservasi |
+| DELETE | `/reservations/{guid}` | `TableReservationPageController@destroy` | Batalkan reservasi |
 | GET | `/settings/profile` | `ProfilePageController@edit` | Edit profil |
 | PUT | `/settings/profile` | `ProfilePageController@update` | Update profil |
 
@@ -174,6 +178,17 @@ Setiap request API wajib header: `Authorization: Bearer {token}`
 | POST | `/api/payments` | `PaymentController@index` |
 | POST | `/api/payments/store` | `PaymentController@store` |
 | GET | `/api/payments/{guid}` | `PaymentController@show` |
+| POST | `/tables` | `RestaurantTableController@index` |
+| POST | `/tables/store` | `RestaurantTableController@store` |
+| GET | `/tables/{guid}` | `RestaurantTableController@show` |
+| PUT | `/tables/update` | `RestaurantTableController@update` |
+| DELETE | `/tables/{guid}` | `RestaurantTableController@destroy` |
+| GET | `/tables/status/all` | `RestaurantTableController@statusAll` |
+| POST | `/reservations` | `TableReservationController@index` |
+| POST | `/reservations/store` | `TableReservationController@store` |
+| GET | `/reservations/{guid}` | `TableReservationController@show` |
+| PUT | `/reservations/update` | `TableReservationController@update` |
+| DELETE | `/reservations/{guid}` | `TableReservationController@destroy` |
 | POST | `/shift/store` | `ShiftApiController@store` |
 | PUT | `/shift/close` | `ShiftApiController@close` |
 | GET | `/shift/active` | `ShiftApiController@active` |
@@ -317,6 +332,29 @@ shifts
   ├── difference (decimal 15,2, nullable)
   ├── notes (nullable)
   ├── status (open/closed, default open)
+  └── timestamps
+
+tables
+  ├── id, guid (uuid)
+  ├── table_number (unique)
+  ├── capacity (integer)
+  ├── location (indoor/outdoor)
+  ├── status (available/occupied/reserved/maintenance)
+  ├── guid_cabang → authentication.cabang.guid (nullable)
+  ├── is_active
+  └── timestamps
+
+table_reservations
+  ├── id, guid (uuid)
+  ├── table_guid → orders.tables.guid (nullable)
+  ├── table_number
+  ├── customer_name, customer_phone
+  ├── guest_count (integer)
+  ├── reservation_date, reservation_time
+  ├── notes (nullable)
+  ├── status (pending/confirmed/seated/completed/cancelled)
+  ├── guid_cabang → authentication.cabang.guid (nullable)
+  ├── is_active
   └── timestamps
 ```
 
@@ -760,3 +798,5 @@ Jika stok tidak cukup, order tetap `completed` tapi item yang tidak cukup stokny
 | Shift | ✅ | Migration, model, API (5 endpoint), service, integrasi order, UI monitoring, sidebar nav, navbar pill, seeder demo |
 | Laporan/Report + Export | ✅ | Preview, summary, export CSV async, status, download, dan history tersedia |
 | Inventory History & Stock Movement | ✅ | All components implemented: migration, model, seeder, service, API controllers, web controllers, UI pages, docs, order integration. |
+| Table Reservation | 🟡 | Migration ✅, Model ✅, Seeder ✅, API Controller ✅, Web Controller ✅, UI Page ✅, Sidebar ✅, Routes ✅, Docs ✅. Integrasi order & fitur time-window reservasi menyusul. |
+| Tables (Master Meja) | 🟡 | Migration ✅, Model ✅, Seeder (16 meja) ✅, API Controller ✅, API Doc ✅. Web UI menyusul. |

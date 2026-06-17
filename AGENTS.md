@@ -23,11 +23,13 @@
   - `product.products`
   - `product.inventories`
    - `product.inventory_history`
-- `orders.*`: order, payment, shift domain.
+- `orders.*`: order, payment, shift, reservation domain.
   - `orders.orders`
   - `orders.order_items`
   - `orders.payments`
   - `orders.shifts`
+  - `orders.tables` — master meja restoran
+  - `orders.table_reservations`
 - `reports.*` is not a schema. Report export metadata uses `report_exports` model/table as implemented.
 
 ## Roles
@@ -56,6 +58,8 @@ API routes are in `routes/api.php`. Because `bootstrap/app.php` sets `apiPrefix:
 - Inventory: `/inventory`, `/inventory/store`, `/inventory/{guid}`, `/inventory/update`, delete `/inventory/{guid}`, `/inventory/adjust`, `/inventory/history`
 - Orders: `/orders`, `/orders/store`, `/orders/{guid}`, `/orders/update`, delete `/orders/{guid}`
 - Payments: `/payments`, `/payments/store`, `/payments/{guid}`
+- Tables: `/tables`, `/tables/store`, `/tables/{guid}`, `/tables/update`, delete `/tables/{guid}`, `/tables/status/all`
+- Reservations: `/reservations`, `/reservations/store`, `/reservations/{guid}`, `/reservations/update`, delete `/reservations/{guid}`
 - Shifts: `/shift/store`, `/shift/close`, `/shift/active`, `/shift/{guid}`, `/shift`
 
 Web routes are in `routes/web.php`:
@@ -65,6 +69,7 @@ Web routes are in `routes/web.php`:
 - `/inventory/history` global riwayat mutasi stok (history at `/inventory/items/{guid}/history`)
 - `/orders` web order page
 - `/shifts` and `/shifts/{guid}` shift monitoring
+- `/reservations` table reservation management
 - `/reports`, `/reports/exports`, `/reports/{type}/preview`, `/reports/{type}/summary`, `/reports/{type}/export`, export status/download routes
 - `/settings/profile`
 
@@ -330,11 +335,21 @@ Rules:
 - `InventoryHistorySeeder`
 - `OrderSeeder`
 - `ShiftSeeder`
+- `TableReservationSeeder`
 - default Laravel `User::factory()` test user
 
 Seeder branch defaults:
 - Public users factory uses `guid_cabang = PUSAT GUID`.
 - Catalog inventory seed uses `guid_cabang = PUSAT GUID`.
+
+## Tables & Reservations
+- `orders.tables` stores master table data with static status (available/maintenance).
+- Real-time status (occupied/reserved) is calculated via `RestaurantTable::resolveStatus()`:
+  - If active `open` order exists → `occupied`
+  - If today has active `pending`/`confirmed` reservation → `reserved`
+  - If status manually set to `maintenance` → `maintenance`
+  - Otherwise → `available`
+- Current behavior: table shows as `reserved` for the entire day once there's a reservation. Future improvement: use time-window (e.g., H-3 to H+2) instead of full-day.
 
 ## Development Notes
 - Prefer existing Laravel/Eloquent patterns in the repo.

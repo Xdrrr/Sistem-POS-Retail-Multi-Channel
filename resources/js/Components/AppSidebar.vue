@@ -6,6 +6,8 @@ const navItems = [
     { label: 'Home', icon: 'home', href: '/' },
     // { label: 'New Sale', icon: 'add_shopping_cart', href: '/orders', activeWhen: null },
     // { label: 'Orders', icon: 'receipt_long', href: '/orders' },
+    { label: 'Reservation', icon: 'event_seat', href: '/reservations' },
+    { label: 'Tables', icon: 'grid_view', href: '/tables' },
     { label: 'Shift', icon: 'calendar_today', href: '/shifts' },
     { label: 'Reports', icon: 'bar_chart', href: '/reports' },
     { label: 'History <br> Export', icon: 'history', href: '/reports/exports' },

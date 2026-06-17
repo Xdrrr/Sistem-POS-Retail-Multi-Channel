@@ -23,6 +23,8 @@ class DatabaseSeeder extends Seeder
         $this->call(InventoryHistorySeeder::class);
         $this->call(OrderSeeder::class);
         $this->call(ShiftSeeder::class);
+        $this->call(RestaurantTableSeeder::class);
+        $this->call(TableReservationSeeder::class);
 
         // User::factory(10)->create();
 

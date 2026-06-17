@@ -6,6 +6,8 @@ use App\Http\Controllers\HomePageController;
 use App\Http\Controllers\InventoryPageController;
 use App\Http\Controllers\OrderPageController;
 use App\Http\Controllers\ProfilePageController;
+use App\Http\Controllers\TableReservationPageController;
+use App\Http\Controllers\TablesPageController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ReportPageController;
 use App\Http\Controllers\ShiftPageController;
@@ -55,6 +57,16 @@ Route::middleware(EnsureWebAuthenticated::class)->group(function (): void {
 
     Route::get('/shifts', [ShiftPageController::class, 'index'])->name('shifts.index');
     Route::get('/shifts/{guid}', [ShiftPageController::class, 'show'])->name('shifts.show');
+
+    Route::get('/tables', [TablesPageController::class, 'index'])->name('tables.index');
+    Route::post('/tables', [TablesPageController::class, 'store'])->name('tables.store');
+    Route::put('/tables/{guid}', [TablesPageController::class, 'update'])->name('tables.update');
+    Route::delete('/tables/{guid}', [TablesPageController::class, 'destroy'])->name('tables.destroy');
+
+    Route::get('/reservations', [TableReservationPageController::class, 'index'])->name('reservations.index');
+    Route::post('/reservations', [TableReservationPageController::class, 'store'])->name('reservations.store');
+    Route::put('/reservations/{guid}', [TableReservationPageController::class, 'update'])->name('reservations.update');
+    Route::delete('/reservations/{guid}', [TableReservationPageController::class, 'destroy'])->name('reservations.destroy');
 
     Route::get('/reports', [ReportPageController::class, 'index'])->name('reports.index');
     Route::get('/reports/exports', [ReportPageController::class, 'exports'])->name('reports.exports.index');

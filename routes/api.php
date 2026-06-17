@@ -8,7 +8,9 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductGroupController;
+use App\Http\Controllers\RestaurantTableController;
 use App\Http\Controllers\ShiftApiController;
+use App\Http\Controllers\TableReservationController;
 use App\Http\Controllers\TokenAuthController;
 use App\Http\Middleware\EnsureApiToken;
 use Illuminate\Support\Facades\Route;
@@ -68,6 +70,21 @@ Route::middleware(EnsureApiToken::class)->group(function (): void {
     Route::post('/payments', [PaymentController::class, 'index']);
     Route::post('/payments/store', [PaymentController::class, 'store']);
     Route::get('/payments/{guid}', [PaymentController::class, 'show'])->whereUuid('guid');
+
+    // Tables
+    Route::post('/tables', [RestaurantTableController::class, 'index']);
+    Route::post('/tables/store', [RestaurantTableController::class, 'store']);
+    Route::get('/tables/{guid}', [RestaurantTableController::class, 'show'])->whereUuid('guid');
+    Route::put('/tables/update', [RestaurantTableController::class, 'update']);
+    Route::delete('/tables/{guid}', [RestaurantTableController::class, 'destroy'])->whereUuid('guid');
+    Route::get('/tables/status/all', [RestaurantTableController::class, 'statusAll']);
+
+    // Reservations
+    Route::post('/reservations', [TableReservationController::class, 'index']);
+    Route::post('/reservations/store', [TableReservationController::class, 'store']);
+    Route::get('/reservations/{guid}', [TableReservationController::class, 'show'])->whereUuid('guid');
+    Route::put('/reservations/update', [TableReservationController::class, 'update']);
+    Route::delete('/reservations/{guid}', [TableReservationController::class, 'destroy'])->whereUuid('guid');
 
     // Shifts
     Route::prefix('shift')->group(function (): void {
