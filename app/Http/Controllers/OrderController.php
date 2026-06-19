@@ -9,7 +9,6 @@ use App\Models\Product;
 use App\Models\AuthenticationSession;
 use App\Models\AuthenticationUser;
 use App\Models\InventoryHistory;
-use App\Models\RestaurantTable;
 use App\Services\Shifts\ShiftService;
 use App\Traits\Filterable;
 use Illuminate\Http\JsonResponse;
@@ -109,10 +108,6 @@ class OrderController extends Controller
             return $order->refresh()->load(['items.product', 'payments']);
         });
 
-        if ($order->table_number) {
-            RestaurantTable::broadcastByTableNumber($order->table_number, 'updated');
-        }
-
         return $this->apiResponse('00', 'success', $this->orderData($order), 'Order created successfully.', 'Order berhasil dibuat.', 201);
     }
 
@@ -151,8 +146,6 @@ class OrderController extends Controller
 
         $validated = $validator->validated();
 
-        $oldTableNumber = $order->table_number;
-
         $order = DB::transaction(function () use ($order, $validated): Order {
             $items = $this->prepareItems($validated['items']);
             $subtotal = collect($items)->sum('subtotal');
@@ -184,12 +177,6 @@ class OrderController extends Controller
 
             return $order->refresh()->load(['items.product', 'payments']);
         });
-
-        $newTableNumber = $order->table_number;
-        $tablesToBroadcast = array_unique(array_filter([$oldTableNumber, $newTableNumber]));
-        foreach ($tablesToBroadcast as $tn) {
-            RestaurantTable::broadcastByTableNumber($tn, 'updated');
-        }
 
         return $this->apiResponse('00', 'success', $this->orderData($order), 'Order updated successfully.', 'Order berhasil diperbarui.');
     }

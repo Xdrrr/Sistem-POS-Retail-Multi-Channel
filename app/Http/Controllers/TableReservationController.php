@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\RestaurantTable;
 use App\Models\TableReservation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -107,8 +106,6 @@ class TableReservationController extends Controller
             'is_active' => true,
         ]);
 
-        RestaurantTable::broadcastByTableNumber($validated['table_number'], 'updated');
-
         return $this->apiResponse('00', 'success', $this->reservationData($reservation), 'Reservation created.', 'Reservasi berhasil dibuat.', 201);
     }
 
@@ -150,16 +147,9 @@ class TableReservationController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        $oldTableNumber = $reservation->table_number;
         $reservation->update($validated);
-        $newTableNumber = $reservation->fresh()->table_number;
 
-        $tablesToBroadcast = array_unique(array_filter([$oldTableNumber, $newTableNumber]));
-        foreach ($tablesToBroadcast as $tn) {
-            RestaurantTable::broadcastByTableNumber($tn, 'updated');
-        }
-
-        return $this->apiResponse('00', 'success', $this->reservationData($reservation), 'Reservation updated.', 'Reservasi berhasil diperbarui.');
+        return $this->apiResponse('00', 'success', $this->reservationData($reservation->fresh()), 'Reservation updated.', 'Reservasi berhasil diperbarui.');
     }
 
     public function destroy(string $guid): JsonResponse
@@ -170,10 +160,7 @@ class TableReservationController extends Controller
             return $this->apiResponse('01', 'failed', null, 'Reservation not found.', 'Reservasi tidak ditemukan.', 404);
         }
 
-        $tableNumber = $reservation->table_number;
         $reservation->update(['is_active' => false]);
-
-        RestaurantTable::broadcastByTableNumber($tableNumber, 'updated');
 
         return $this->apiResponse('00', 'success', null, 'Reservation cancelled.', 'Reservasi dibatalkan.');
     }

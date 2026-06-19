@@ -1,9 +1,8 @@
 <script setup>
-import { Link, useForm, usePage, router } from '@inertiajs/vue3';
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { Link, useForm } from '@inertiajs/vue3';
+import { computed, reactive, ref, watch } from 'vue';
 import AppNavbar from '../../Components/AppNavbar.vue';
 import AppSidebar from '../../Components/AppSidebar.vue';
-import echo from '../../echo';
 
 const props = defineProps({
     tables: { type: Array, default: () => [] },
@@ -12,22 +11,6 @@ const props = defineProps({
 });
 
 const tableList = ref([]);
-const toasts = ref([]);
-
-let toastId = 0;
-const addToast = (message, type = 'info') => {
-    const id = ++toastId;
-    toasts.value.push({ id, message, type });
-    setTimeout(() => {
-        toasts.value = toasts.value.filter((t) => t.id !== id);
-    }, 4000);
-};
-
-router.on('success', () => {
-    const flash = usePage().props.flash;
-    if (flash?.success) addToast(flash.success, 'success');
-    if (flash?.error) addToast(flash.error, 'error');
-});
 
 const modalOpen = ref(false);
 const confirmDelete = ref(null);
@@ -53,27 +36,7 @@ watch(() => props.tables, (val) => {
     tableList.value = val ? [...val] : [];
 }, { immediate: true });
 
-onMounted(() => {
-    echo.channel('tables')
-        .listen('.table.status.changed', (e) => {
-            const idx = tableList.value.findIndex((t) => t.guid === e.table.guid);
-            if (e.action === 'deleted') {
-                if (idx !== -1) tableList.value.splice(idx, 1);
-            } else if (e.action === 'created') {
-                if (idx === -1) tableList.value.push(e.table);
-            } else {
-                if (idx !== -1) {
-                    tableList.value[idx] = e.table;
-                } else {
-                    tableList.value.push(e.table);
-                }
-            }
-        });
-});
 
-onUnmounted(() => {
-    echo.leaveChannel('tables');
-});
 
 const filteredTables = computed(() => {
     const q = filters.search.trim().toLowerCase();
@@ -241,13 +204,6 @@ const changePage = (p) => { currentPage.value = Math.max(1, Math.min(meta.value.
             </section>
         </main>
 
-        <div class="toast-container">
-            <div v-for="t in toasts" :key="t.id" class="toast" :class="`toast--${t.type}`">
-                <span class="material-symbols-outlined">{{ { info: 'info', success: 'check_circle', warning: 'warning' }[t.type] }}</span>
-                <span>{{ t.message }}</span>
-            </div>
-        </div>
-
         <div v-if="confirmDelete" class="modal-backdrop">
             <div class="modal modal--confirm">
                 <div class="modal__header">
@@ -343,12 +299,6 @@ td { color: #191c1d; }
 .status--occupied { background: #fee2e2; color: #991b1b; }
 .status--reserved { background: #fff7d6; color: #8a5a00; }
 .status--maintenance { background: #e7e8e9; color: #454652; }
-.toast-container { position: fixed; top: 72px; right: 16px; z-index: 100; display: grid; gap: 8px; max-width: 360px; }
-.toast { display: flex; align-items: center; gap: 8px; border-radius: 8px; padding: 12px 16px; font-weight: 600; font-size: 13px; box-shadow: 0 4px 16px rgb(0 0 0 / 14%); animation: slideIn .3s ease; }
-.toast--info { background: #e0f2fe; color: #075985; }
-.toast--success { background: #dcfce7; color: #166534; }
-.toast--warning { background: #fff7d6; color: #8a5a00; }
-@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 .empty-state { padding: 32px; color: #5d6268; text-align: center; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; background: rgb(0 0 0 / 36%); padding: 18px; }
 .modal { width: min(100%, 460px); border: 1px solid #c6c5d4; border-radius: 8px; background: #fff; box-shadow: 0 18px 48px rgb(15 23 42 / 20%); }

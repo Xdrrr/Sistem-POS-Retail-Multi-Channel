@@ -42,7 +42,7 @@ class InventoryService
             'guid' => (string) Str::uuid(),
             'inventory_id' => $inventory->guid,
             'product_guid' => $inventory->product_guid,
-            'id_cabang' => $inventory->id_cabang,
+            'guid_cabang' => $inventory->guid_cabang,
             'type' => $type,
             'qty' => $qty,
             'stock_before' => $stockBefore,

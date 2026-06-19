@@ -88,7 +88,7 @@ class InventoryPageController extends Controller
             );
         }
 
-        return redirect()->route('inventory.index');
+        return redirect()->route('inventory.index')->with('success', 'Inventory berhasil dibuat.');
     }
 
     public function update(Request $request, string $guid): RedirectResponse
@@ -117,14 +117,14 @@ class InventoryPageController extends Controller
             'is_active' => $validated['is_active'] ?? false,
         ]);
 
-        return redirect()->route('inventory.index');
+        return redirect()->route('inventory.index')->with('success', 'Inventory berhasil diperbarui.');
     }
 
     public function destroy(string $guid): RedirectResponse
     {
         ProductInventory::query()->where('guid', $guid)->firstOrFail()->delete();
 
-        return redirect()->route('inventory.index');
+        return redirect()->route('inventory.index')->with('success', 'Inventory berhasil dihapus.');
     }
 
     public function adjust(Request $request): RedirectResponse

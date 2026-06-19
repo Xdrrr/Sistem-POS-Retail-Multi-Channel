@@ -58,7 +58,7 @@ class CatalogPageController extends Controller
             'is_active' => $validated['is_active'] ?? true,
         ]);
 
-        return redirect()->route('catalog.index');
+        return redirect()->route('catalog.index')->with('success', 'Kategori berhasil dibuat.');
     }
 
     public function updateCategory(Request $request, string $guid): RedirectResponse
@@ -78,7 +78,7 @@ class CatalogPageController extends Controller
             'is_active' => $validated['is_active'] ?? false,
         ]);
 
-        return redirect()->route('catalog.index');
+        return redirect()->route('catalog.index')->with('success', 'Kategori berhasil diperbarui.');
     }
 
     public function destroyCategory(string $guid): RedirectResponse
@@ -90,7 +90,7 @@ class CatalogPageController extends Controller
             $category->delete();
         }
 
-        return redirect()->route('catalog.index');
+        return redirect()->route('catalog.index')->with('success', 'Kategori berhasil dihapus.');
     }
 
     public function storeGroup(Request $request): RedirectResponse
@@ -110,7 +110,7 @@ class CatalogPageController extends Controller
             'is_active' => $validated['is_active'] ?? true,
         ]);
 
-        return redirect()->route('catalog.index');
+        return redirect()->route('catalog.index')->with('success', 'Grup berhasil dibuat.');
     }
 
     public function updateGroup(Request $request, string $guid): RedirectResponse
@@ -130,7 +130,7 @@ class CatalogPageController extends Controller
             'is_active' => $validated['is_active'] ?? false,
         ]);
 
-        return redirect()->route('catalog.index');
+        return redirect()->route('catalog.index')->with('success', 'Grup berhasil diperbarui.');
     }
 
     public function destroyGroup(string $guid): RedirectResponse
@@ -142,7 +142,7 @@ class CatalogPageController extends Controller
             $group->delete();
         }
 
-        return redirect()->route('catalog.index');
+        return redirect()->route('catalog.index')->with('success', 'Grup berhasil dihapus.');
     }
 
     public function storeProduct(Request $request): RedirectResponse
@@ -173,7 +173,7 @@ class CatalogPageController extends Controller
             'is_active' => true,
         ]);
 
-        return redirect()->route('catalog.index');
+        return redirect()->route('catalog.index')->with('success', 'Produk berhasil dibuat.');
     }
 
     public function updateProduct(Request $request, string $guid): RedirectResponse
@@ -200,7 +200,7 @@ class CatalogPageController extends Controller
                 ->update(['guid_cabang' => $newGuidCabang]);
         }
 
-        return redirect()->route('catalog.index');
+        return redirect()->route('catalog.index')->with('success', 'Produk berhasil diperbarui.');
     }
 
     public function destroyProduct(string $guid): RedirectResponse
@@ -209,7 +209,7 @@ class CatalogPageController extends Controller
         $this->deleteCatalogImage($product->image);
         $product->delete();
 
-        return redirect()->route('catalog.index');
+        return redirect()->route('catalog.index')->with('success', 'Produk berhasil dihapus.');
     }
 
     private function productRules(?Product $product = null): array
