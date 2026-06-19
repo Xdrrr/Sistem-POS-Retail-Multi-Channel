@@ -7,6 +7,7 @@ import AppSidebar from '../../Components/AppSidebar.vue';
 const props = defineProps({
     products: { type: Array, default: () => [] },
     orders: { type: Array, default: () => [] },
+    tables: { type: Array, default: () => [] },
     serverTime: {
         type: String,
         default: () => '',
@@ -133,6 +134,22 @@ const completeOrder = (order) => {
 const cancelOrder = (order) => {
     useForm({}).put(`/orders/${order.guid}/cancel`, { preserveScroll: true });
 };
+
+const confirmDelete = ref(null);
+const confirmDestroy = (order, action) => {
+    confirmDelete.value = { order, action };
+};
+const executeDestroy = () => {
+    if (confirmDelete.value) {
+        const { order, action } = confirmDelete.value;
+        if (action === 'complete') {
+            useForm({}).put(`/orders/${order.guid}/complete`, { preserveScroll: true });
+        } else if (action === 'cancel') {
+            useForm({}).put(`/orders/${order.guid}/cancel`, { preserveScroll: true });
+        }
+        confirmDelete.value = null;
+    }
+};
 </script>
 
 <template>
@@ -213,7 +230,12 @@ const cancelOrder = (order) => {
                         </label>
                         <label>
                             <span>Table</span>
-                            <input v-model="orderForm.table_number" type="text" placeholder="A1" />
+                            <select v-model="orderForm.table_number">
+                                <option value="">Pilih Meja</option>
+                                <option v-for="t in tables" :key="t.guid" :value="t.table_number">
+                                    {{ t.table_number }} ({{ t.capacity }} org - {{ t.location }})
+                                </option>
+                            </select>
                         </label>
                         <label>
                             <span>Order Type</span>
@@ -325,10 +347,10 @@ const cancelOrder = (order) => {
                                     <span class="material-symbols-outlined">payments</span>
                                     Payment
                                 </button>
-                                <button v-if="order.status === 'open'" class="icon-button" type="button" aria-label="Complete order" @click="completeOrder(order)">
+                                <button v-if="order.status === 'open'" class="icon-button" type="button" aria-label="Complete order" @click="confirmDestroy(order, 'complete')">
                                     <span class="material-symbols-outlined">check_circle</span>
                                 </button>
-                                <button v-if="order.status !== 'cancelled'" class="icon-button icon-button--danger" type="button" aria-label="Cancel order" @click="cancelOrder(order)">
+                                <button v-if="order.status !== 'cancelled'" class="icon-button icon-button--danger" type="button" aria-label="Cancel order" @click="confirmDestroy(order, 'cancel')">
                                     <span class="material-symbols-outlined">cancel</span>
                                 </button>
                             </div>
@@ -382,6 +404,24 @@ const cancelOrder = (order) => {
                     </button>
                 </div>
             </form>
+        </div>
+        <div v-if="confirmDelete" class="modal-backdrop">
+            <div class="modal modal--confirm">
+                <div class="modal__header">
+                    <div><h2>{{ confirmDelete?.action === 'complete' ? 'Konfirmasi Selesai' : 'Konfirmasi Batal' }}</h2></div>
+                    <button class="icon-button" type="button" @click="confirmDelete = null"><span class="material-symbols-outlined">close</span></button>
+                </div>
+                <div class="modal__body">
+                    <p>Yakin ingin <strong>{{ confirmDelete?.action === 'complete' ? 'menyelesaikan' : 'membatalkan' }}</strong> order <strong>{{ confirmDelete?.order?.order_number || '' }}</strong>?</p>
+                </div>
+                <div class="modal__actions">
+                    <button class="secondary-action" type="button" @click="confirmDelete = null">Batal</button>
+                    <button class="primary-action" :class="confirmDelete?.action === 'cancel' ? 'primary-action--danger' : ''" type="button" @click="executeDestroy">
+                        <span class="material-symbols-outlined fill">{{ confirmDelete?.action === 'complete' ? 'check_circle' : 'cancel' }}</span>
+                        {{ confirmDelete?.action === 'complete' ? 'Selesaikan' : 'Batalkan' }}
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -1057,6 +1097,10 @@ label > span {
     gap: 10px;
     padding: 18px;
 }
+
+.modal--confirm .modal__body { padding: 18px; }
+.modal--confirm .modal__body p { margin: 0; font-size: 15px; line-height: 1.5; }
+.primary-action--danger { background: #ba1a1a; }
 
 small {
     display: block;

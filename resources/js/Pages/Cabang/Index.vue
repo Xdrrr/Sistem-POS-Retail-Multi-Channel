@@ -68,6 +68,14 @@ const submit = () => {
     form.post('/cabang/items', opts);
 };
 const destroyItem = (item) => { form.delete(`/cabang/items/${item.guid}`, { preserveScroll: true }); };
+const confirmDelete = ref(null);
+const confirmDestroy = (item) => { confirmDelete.value = item; };
+const executeDestroy = () => {
+    if (confirmDelete.value) {
+        destroyItem(confirmDelete.value);
+        confirmDelete.value = null;
+    }
+};
 const changePage = (p) => { currentPage.value = Math.max(1, Math.min(meta.value.last_page, p)); };
 </script>
 
@@ -157,7 +165,7 @@ const changePage = (p) => { currentPage.value = Math.max(1, Math.min(meta.value.
                                         <button class="icon-button" aria-label="Edit" @click="openEdit(item)">
                                             <span class="material-symbols-outlined">edit</span>
                                         </button>
-                                        <button class="icon-button icon-button--danger" aria-label="Delete" @click="destroyItem(item)">
+                                        <button class="icon-button icon-button--danger" aria-label="Delete" @click="confirmDestroy(item)">
                                             <span class="material-symbols-outlined">delete</span>
                                         </button>
                                     </td>
@@ -192,6 +200,23 @@ const changePage = (p) => { currentPage.value = Math.max(1, Math.min(meta.value.
                     <button class="primary-action" type="submit" :disabled="form.processing"><span class="material-symbols-outlined fill">save</span>Simpan</button>
                 </div>
             </form>
+        </div>
+        <div v-if="confirmDelete" class="modal-backdrop">
+            <div class="modal modal--confirm">
+                <div class="modal__header">
+                    <div><h2>Konfirmasi Hapus</h2></div>
+                    <button class="icon-button" type="button" @click="confirmDelete = null"><span class="material-symbols-outlined">close</span></button>
+                </div>
+                <div class="modal__body">
+                    <p>Yakin ingin menghapus <strong>{{ confirmDelete?.kode || confirmDelete?.nama || '' }}</strong>?</p>
+                </div>
+                <div class="modal__actions">
+                    <button class="secondary-action" type="button" @click="confirmDelete = null">Batal</button>
+                    <button class="primary-action primary-action--danger" type="button" :disabled="form?.processing" @click="executeDestroy">
+                        <span class="material-symbols-outlined fill">delete</span>Hapus
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -252,6 +277,9 @@ input, select, textarea { width: 100%; padding: 0 12px; font: inherit; border: 1
 input, select { height: 42px; }
 textarea { padding: 10px 12px; resize: vertical; }
 small { display: block; margin-top: 6px; color: #ba1a1a; font-weight: 700; }
+.modal--confirm .modal__body { padding: 18px; }
+.modal--confirm .modal__body p { margin: 0; font-size: 15px; line-height: 1.5; }
+.primary-action--danger { background: #ba1a1a; }
 .modal__actions { justify-content: flex-end; gap: 10px; padding: 18px; }
 @media (max-width: 1000px) { .inventory-layout { grid-template-columns: 1fr; } }
 @media (max-width: 720px) { :global(body) { overflow: auto; } .content { height: auto; margin-left: 0; padding: 18px 14px 92px; } .brand { font-size: 24px; } .page-title { align-items: stretch; flex-direction: column; } .page-actions { align-self: flex-start; } .form-grid { grid-template-columns: 1fr; } }

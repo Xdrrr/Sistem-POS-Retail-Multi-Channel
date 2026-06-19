@@ -169,6 +169,15 @@ const destroyItem = (item) => {
     form.delete(`/inventory/items/${item.guid}`, { preserveScroll: true });
 };
 
+const confirmDelete = ref(null);
+const confirmDestroy = (item) => { confirmDelete.value = item; };
+const executeDestroy = () => {
+    if (confirmDelete.value) {
+        destroyItem(confirmDelete.value);
+        confirmDelete.value = null;
+    }
+};
+
 const changePage = (page) => {
     currentPage.value = Math.max(1, Math.min(meta.value.last_page, page));
 };
@@ -360,7 +369,7 @@ const changePage = (page) => {
                                         <button class="icon-button" type="button" aria-label="Edit inventory" @click="openEdit(item)">
                                             <span class="material-symbols-outlined">edit</span>
                                         </button>
-                                        <button class="icon-button icon-button--danger" type="button" aria-label="Delete inventory" @click="destroyItem(item)">
+                                        <button class="icon-button icon-button--danger" type="button" aria-label="Delete inventory" @click="confirmDestroy(item)">
                                             <span class="material-symbols-outlined">delete</span>
                                         </button>
                                     </td>
@@ -479,6 +488,23 @@ const changePage = (page) => {
                     </div>
                 </template>
             </form>
+        </div>
+        <div v-if="confirmDelete" class="modal-backdrop">
+            <div class="modal modal--confirm">
+                <div class="modal__header">
+                    <div><h2>Konfirmasi Hapus</h2></div>
+                    <button class="icon-button" type="button" @click="confirmDelete = null"><span class="material-symbols-outlined">close</span></button>
+                </div>
+                <div class="modal__body">
+                    <p>Yakin ingin menghapus <strong>{{ confirmDelete?.product_name || confirmDelete?.name || '' }}</strong>?</p>
+                </div>
+                <div class="modal__actions">
+                    <button class="secondary-action" type="button" @click="confirmDelete = null">Batal</button>
+                    <button class="primary-action primary-action--danger" type="button" :disabled="form?.processing" @click="executeDestroy">
+                        <span class="material-symbols-outlined fill">delete</span>Hapus
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -953,6 +979,10 @@ small {
     min-height: 42px;
     justify-content: center;
 }
+
+.modal--confirm .modal__body { padding: 18px; }
+.modal--confirm .modal__body p { margin: 0; font-size: 15px; line-height: 1.5; }
+.primary-action--danger { background: #ba1a1a; }
 
 .stock-readonly strong {
     font-size: 20px;

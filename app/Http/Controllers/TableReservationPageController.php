@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cabang;
+use App\Models\Order;
 use App\Models\RestaurantTable;
 use App\Models\TableReservation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -26,13 +28,43 @@ class TableReservationPageController extends Controller
             ->where('is_active', true)
             ->orderBy('table_number')
             ->get()
-            ->map(fn (RestaurantTable $t): array => [
-                'guid' => $t->guid,
-                'table_number' => $t->table_number,
-                'capacity' => $t->capacity,
-                'location' => $t->location,
-                'status' => $t->resolveStatus(),
-            ]);
+            ->map(function (RestaurantTable $t): array {
+                $status = $t->resolveStatus();
+                $data = [
+                    'guid' => $t->guid,
+                    'table_number' => $t->table_number,
+                    'capacity' => $t->capacity,
+                    'location' => $t->location,
+                    'status' => $status,
+                    'reservation_guid' => null,
+                    'order_guid' => null,
+                    'reservation_time' => null,
+                    'end_time' => null,
+                ];
+                if (in_array($status, ['occupied', 'reserved'])) {
+                    $statuses = $status === 'occupied' ? ['occupied'] : ['pending', 'confirmed'];
+                    $reservation = TableReservation::query()
+                        ->where('table_guid', $t->guid)
+                        ->where('reservation_date', now()->format('Y-m-d'))
+                        ->whereIn('status', $statuses)
+                        ->where('is_active', true)
+                        ->first();
+                    if ($reservation) {
+                        $data['reservation_guid'] = $reservation->guid;
+                        $data['reservation_time'] = $reservation->reservation_time;
+                        $data['end_time'] = $reservation->end_time;
+                    } elseif ($status === 'occupied') {
+                        $order = Order::query()
+                            ->where('table_number', $t->table_number)
+                            ->where('status', 'open')
+                            ->first(['guid', 'table_number']);
+                        if ($order) {
+                            $data['order_guid'] = $order->guid;
+                        }
+                    }
+                }
+                return $data;
+            });
 
         return Inertia::render('TableReservation/Index', [
             'title' => 'Reservasi Meja',
@@ -52,19 +84,26 @@ class TableReservationPageController extends Controller
             'guest_count' => ['nullable', 'integer', 'min:1'],
             'reservation_date' => ['required', 'date'],
             'reservation_time' => ['required', 'string'],
+            'end_time' => ['nullable', 'string'],
+            'type' => ['nullable', 'string', 'in:booking,walkin'],
             'notes' => ['nullable', 'string', 'max:500'],
-            'status' => ['nullable', 'string', 'in:pending,confirmed,seated,completed,cancelled'],
+            'status' => ['nullable', 'string', 'in:occupied,pending,confirmed,seated,completed,cancelled'],
             'guid_cabang' => ['nullable', 'string'],
         ]);
 
+        $table = RestaurantTable::query()->where('table_number', $validated['table_number'])->first();
+
         TableReservation::query()->create([
             'guid' => (string) Str::uuid(),
+            'table_guid' => $table?->guid,
             'table_number' => $validated['table_number'],
             'customer_name' => $validated['customer_name'],
             'customer_phone' => $validated['customer_phone'] ?? null,
             'guest_count' => $validated['guest_count'] ?? 1,
             'reservation_date' => $validated['reservation_date'],
             'reservation_time' => $validated['reservation_time'],
+            'end_time' => $validated['end_time'] ?? null,
+            'type' => $validated['type'] ?? 'booking',
             'notes' => $validated['notes'] ?? null,
             'status' => $validated['status'] ?? 'pending',
             'guid_cabang' => $validated['guid_cabang'] ?? 'aaaaaaaa-aaaa-4000-8000-000000000001',
@@ -84,11 +123,14 @@ class TableReservationPageController extends Controller
             'guest_count' => ['nullable', 'integer', 'min:1'],
             'reservation_date' => ['required', 'date'],
             'reservation_time' => ['required', 'string'],
+            'end_time' => ['nullable', 'string'],
+            'type' => ['nullable', 'string', 'in:booking,walkin'],
             'notes' => ['nullable', 'string', 'max:500'],
-            'status' => ['nullable', 'string', 'in:pending,confirmed,seated,completed,cancelled'],
+            'status' => ['nullable', 'string', 'in:occupied,pending,confirmed,seated,completed,cancelled'],
         ]);
 
-        $reservation->update($validated);
+        $table = RestaurantTable::query()->where('table_number', $validated['table_number'])->first();
+        $reservation->update(array_merge($validated, ['table_guid' => $table?->guid]));
 
         return redirect()->route('reservations.index')->with('success', 'Reservasi berhasil diperbarui.');
     }
@@ -98,6 +140,27 @@ class TableReservationPageController extends Controller
         TableReservation::query()->where('guid', $guid)->firstOrFail()->update(['is_active' => false]);
 
         return redirect()->route('reservations.index')->with('success', 'Reservasi dibatalkan.');
+    }
+
+    public function release(string $guid): RedirectResponse
+    {
+        $reservation = TableReservation::query()->where('guid', $guid)->firstOrFail();
+        $reservation->update(['status' => 'completed']);
+
+        Order::query()
+            ->where('table_number', $reservation->table_number)
+            ->where('status', 'open')
+            ->update(['table_number' => null]);
+
+        return redirect()->route('reservations.index')->with('success', 'Meja berhasil dikosongkan.');
+    }
+
+    public function releaseOrderTable(string $guid): RedirectResponse
+    {
+        $order = Order::query()->where('guid', $guid)->where('status', 'open')->firstOrFail();
+        $order->update(['table_number' => null]);
+
+        return redirect()->route('reservations.index')->with('success', 'Meja berhasil dikosongkan.');
     }
 
     private function reservationData(TableReservation $r): array
@@ -110,6 +173,8 @@ class TableReservationPageController extends Controller
             'guest_count' => $r->guest_count,
             'reservation_date' => $r->reservation_date?->format('Y-m-d'),
             'reservation_time' => $r->reservation_time,
+            'end_time' => $r->end_time,
+            'type' => $r->type,
             'notes' => $r->notes,
             'status' => $r->status,
             'guid_cabang' => $r->guid_cabang,

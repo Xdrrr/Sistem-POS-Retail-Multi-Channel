@@ -73,6 +73,8 @@ Route::middleware(EnsureWebAuthenticated::class)->group(function (): void {
     Route::post('/reservations', [TableReservationPageController::class, 'store'])->name('reservations.store');
     Route::put('/reservations/{guid}', [TableReservationPageController::class, 'update'])->name('reservations.update');
     Route::delete('/reservations/{guid}', [TableReservationPageController::class, 'destroy'])->name('reservations.destroy');
+    Route::post('/reservations/{guid}/release', [TableReservationPageController::class, 'release'])->name('reservations.release');
+    Route::post('/orders/{guid}/release-table', [TableReservationPageController::class, 'releaseOrderTable'])->name('orders.release-table');
 
     Route::get('/reports', [ReportPageController::class, 'index'])->name('reports.index');
     Route::get('/reports/exports', [ReportPageController::class, 'exports'])->name('reports.exports.index');

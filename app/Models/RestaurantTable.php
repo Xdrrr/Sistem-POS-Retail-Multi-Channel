@@ -37,6 +37,26 @@ class RestaurantTable extends Model
         $today = $now->format('Y-m-d');
         $currentTime = $now->format('H:i');
 
+        $reservations = TableReservation::query()
+            ->where('table_guid', $this->guid)
+            ->where('reservation_date', $today)
+            ->whereIn('status', ['occupied', 'pending', 'confirmed'])
+            ->where('is_active', true)
+            ->get();
+
+        foreach ($reservations as $r) {
+            if ($r->status === 'occupied') {
+                return 'occupied';
+            }
+            if ($r->end_time) {
+                if ($currentTime <= $r->end_time) {
+                    return 'reserved';
+                }
+            } else {
+                return 'reserved';
+            }
+        }
+
         $hasOpenOrder = Order::query()
             ->where('table_number', $this->table_number)
             ->where('status', 'open')
@@ -44,17 +64,6 @@ class RestaurantTable extends Model
 
         if ($hasOpenOrder) {
             return 'occupied';
-        }
-
-        $hasReservation = TableReservation::query()
-            ->where('table_guid', $this->guid)
-            ->where('reservation_date', $today)
-            ->whereIn('status', ['pending', 'confirmed'])
-            ->where('is_active', true)
-            ->exists();
-
-        if ($hasReservation) {
-            return 'reserved';
         }
 
         return 'available';

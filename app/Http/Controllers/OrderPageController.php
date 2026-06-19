@@ -7,6 +7,8 @@ use App\Models\InventoryHistory;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductInventory;
+use App\Models\RestaurantTable;
+use App\Models\TableReservation;
 use App\Services\Inventory\InsufficientStockException;
 use App\Services\Inventory\InventoryService;
 use App\Traits\StoresCatalogImages;
@@ -27,6 +29,10 @@ class OrderPageController extends Controller
         return Inertia::render('Orders/Index', [
             'title' => 'Orders',
             'server_time' => now()->format('l, d F Y at h:i A'),
+            'tables' => RestaurantTable::query()
+                ->where('is_active', true)
+                ->orderBy('table_number')
+                ->get(['guid', 'table_number', 'capacity', 'location']),
             'products' => Product::query()
                 ->with(['category', 'group'])
                 ->where('is_active', true)
@@ -54,7 +60,7 @@ class OrderPageController extends Controller
     {
         $validated = $request->validate($this->orderRules());
 
-        DB::transaction(function () use ($validated): void {
+        $order = DB::transaction(function () use ($validated): Order {
             $items = collect($validated['items'])->map(function (array $item): array {
                 $product = Product::query()->where('guid', $item['product_guid'])->firstOrFail();
                 $quantity = (float) $item['quantity'];
@@ -112,7 +118,29 @@ class OrderPageController extends Controller
             }
 
             $this->syncPaymentStatus($order->refresh());
+            return $order->refresh();
         });
+
+        if ($order->table_number) {
+            $table = RestaurantTable::query()->where('table_number', $order->table_number)->first();
+            TableReservation::query()->updateOrCreate(
+                [
+                    'table_number' => $order->table_number,
+                    'reservation_date' => now()->format('Y-m-d'),
+                    'type' => 'walkin',
+                    'status' => 'occupied',
+                ],
+                [
+                    'guid' => (string) Str::uuid(),
+                    'table_guid' => $table?->guid,
+                    'customer_name' => $order->customer_name ?? 'Walk-in',
+                    'guest_count' => 1,
+                    'reservation_time' => $order->ordered_at?->format('H:i') ?? now()->format('H:i'),
+                    'guid_cabang' => 'aaaaaaaa-aaaa-4000-8000-000000000001',
+                    'is_active' => true,
+                ],
+            );
+        }
 
         return redirect()->route('orders.index')->with('success', 'Order berhasil dibuat.');
     }
@@ -192,6 +220,13 @@ class OrderPageController extends Controller
             $order->update(['status' => 'completed']);
         });
 
+        TableReservation::query()
+            ->where('table_number', $order->table_number)
+            ->where('reservation_date', now()->format('Y-m-d'))
+            ->where('type', 'walkin')
+            ->where('status', 'occupied')
+            ->update(['status' => 'completed']);
+
         return redirect()->route('orders.index')->with('success', 'Order berhasil diselesaikan.');
     }
 
@@ -242,6 +277,13 @@ class OrderPageController extends Controller
 
             $order->update(['status' => 'cancelled']);
         });
+
+        TableReservation::query()
+            ->where('table_number', $order->table_number)
+            ->where('reservation_date', now()->format('Y-m-d'))
+            ->where('type', 'walkin')
+            ->where('status', 'occupied')
+            ->update(['status' => 'completed']);
 
         return redirect()->route('orders.index')->with('success', 'Order berhasil dibatalkan.');
     }

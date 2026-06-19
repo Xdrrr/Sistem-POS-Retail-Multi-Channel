@@ -17,6 +17,8 @@ class TableReservation extends Model
         'guest_count',
         'reservation_date',
         'reservation_time',
+        'end_time',
+        'type',
         'notes',
         'status',
         'guid_cabang',
@@ -29,6 +31,8 @@ class TableReservation extends Model
             'guest_count' => 'integer',
             'reservation_date' => 'date:Y-m-d',
             'reservation_time' => 'string',
+            'end_time' => 'string',
+            'type' => 'string',
             'is_active' => 'boolean',
         ];
     }

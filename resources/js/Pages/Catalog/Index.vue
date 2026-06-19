@@ -288,6 +288,15 @@ const destroyItem = (item) => {
     }
 };
 
+const confirmDelete = ref(null);
+const confirmDestroy = (item) => { confirmDelete.value = item; };
+const executeDestroy = () => {
+    if (confirmDelete.value) {
+        destroyItem(confirmDelete.value);
+        confirmDelete.value = null;
+    }
+};
+
 const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
@@ -484,7 +493,7 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                                         <button class="icon-button" type="button" aria-label="Edit product" @click="openEdit(product)">
                                             <span class="material-symbols-outlined">edit</span>
                                         </button>
-                                        <button class="icon-button icon-button--danger" type="button" aria-label="Delete product" @click="destroyItem(product)">
+                                        <button class="icon-button icon-button--danger" type="button" aria-label="Delete product" @click="confirmDestroy(product)">
                                             <span class="material-symbols-outlined">delete</span>
                                         </button>
                                     </td>
@@ -523,7 +532,7 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                                         <button class="icon-button" type="button" aria-label="Edit category" @click="openEdit(category)">
                                             <span class="material-symbols-outlined">edit</span>
                                         </button>
-                                        <button class="icon-button icon-button--danger" type="button" aria-label="Delete category" @click="destroyItem(category)">
+                                        <button class="icon-button icon-button--danger" type="button" aria-label="Delete category" @click="confirmDestroy(category)">
                                             <span class="material-symbols-outlined">delete</span>
                                         </button>
                                     </td>
@@ -562,7 +571,7 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                                         <button class="icon-button" type="button" aria-label="Edit group" @click="openEdit(group)">
                                             <span class="material-symbols-outlined">edit</span>
                                         </button>
-                                        <button class="icon-button icon-button--danger" type="button" aria-label="Delete group" @click="destroyItem(group)">
+                                        <button class="icon-button icon-button--danger" type="button" aria-label="Delete group" @click="confirmDestroy(group)">
                                             <span class="material-symbols-outlined">delete</span>
                                         </button>
                                     </td>
@@ -668,6 +677,23 @@ const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
                     </button>
                 </div>
             </form>
+        </div>
+        <div v-if="confirmDelete" class="modal-backdrop">
+            <div class="modal modal--confirm">
+                <div class="modal__header">
+                    <div><h2>Konfirmasi Hapus</h2></div>
+                    <button class="icon-button" type="button" @click="confirmDelete = null"><span class="material-symbols-outlined">close</span></button>
+                </div>
+                <div class="modal__body">
+                    <p>Yakin ingin menghapus <strong>{{ confirmDelete?.name || '' }}</strong>?</p>
+                </div>
+                <div class="modal__actions">
+                    <button class="secondary-action" type="button" @click="confirmDelete = null">Batal</button>
+                    <button class="primary-action primary-action--danger" type="button" :disabled="categoryForm?.processing || groupForm?.processing || productForm?.processing" @click="executeDestroy">
+                        <span class="material-symbols-outlined fill">delete</span>Hapus
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -1516,6 +1542,10 @@ small {
     color: #5c5f66;
     border-bottom: 1px solid #edeeef;
 }
+
+.modal--confirm .modal__body { padding: 18px; }
+.modal--confirm .modal__body p { margin: 0; font-size: 15px; line-height: 1.5; }
+.primary-action--danger { background: #ba1a1a; }
 
 @media (max-width: 900px) {
     .catalog-layout {
