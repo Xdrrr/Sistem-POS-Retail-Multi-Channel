@@ -6,6 +6,10 @@ Semua endpoint reservations menggunakan middleware `EnsureApiToken`.
 
 Reservasi meja disimpan pada tabel `orders.table_reservations`. Modul ini dipakai untuk mengelola booking meja oleh pelanggan.
 
+Status reservasi: `occupied` (walk-in dari order), `pending`, `confirmed`, `seated`, `completed`, `cancelled`.
+
+Tipe reservasi: `booking` (dengan rentang jam), `walkin` (dibuat otomatis saat order dine-in dibuat).
+
 ### Daftar Endpoint
 
 | Method | Endpoint | Auth | Deskripsi |
@@ -57,7 +61,7 @@ Mendapatkan daftar reservasi dengan filter.
 | `filter.set_table_number` | nullable, boolean |
 | `filter.table_number` | nullable, string, max:30 |
 | `filter.set_status` | nullable, boolean |
-| `filter.status` | nullable, string, in:pending,confirmed,seated,completed,cancelled |
+| `filter.status` | nullable, string, in:occupied,pending,confirmed,seated,completed,cancelled |
 | `filter.set_reservation_date` | nullable, boolean |
 | `filter.reservation_date` | nullable, date |
 | `filter.set_guid_cabang` | nullable, boolean |
@@ -85,6 +89,8 @@ Mendapatkan daftar reservasi dengan filter.
                 "guest_count": 4,
                 "reservation_date": "2026-06-17",
                 "reservation_time": "12:00",
+                "end_time": "14:00",
+                "type": "booking",
                 "notes": null,
                 "status": "confirmed",
                 "guid_cabang": "aaaaaaaa-aaaa-4000-8000-000000000001",
@@ -112,6 +118,8 @@ Mendapatkan daftar reservasi dengan filter.
     "guest_count": 4,
     "reservation_date": "2026-06-17",
     "reservation_time": "12:00",
+    "end_time": "14:00",
+    "type": "booking",
     "notes": "Minta meja dekat jendela",
     "status": "pending",
     "guid_cabang": "aaaaaaaa-aaaa-4000-8000-000000000001"
@@ -129,8 +137,10 @@ Mendapatkan daftar reservasi dengan filter.
 | `guest_count` | nullable, integer, min:1 (default: 1) |
 | `reservation_date` | required, date |
 | `reservation_time` | required, string |
+| `end_time` | nullable, string (jam selesai, required jika type=booking) |
+| `type` | nullable, string, in:booking,walkin (default: booking) |
 | `notes` | nullable, string, max:500 |
-| `status` | nullable, string, in:pending,confirmed,seated,completed,cancelled (default: pending) |
+| `status` | nullable, string, in:occupied,pending,confirmed,seated,completed,cancelled (default: pending) |
 | `guid_cabang` | nullable, string (default: PUSAT) |
 
 ### Response (201)
@@ -148,6 +158,8 @@ Mendapatkan daftar reservasi dengan filter.
             "guest_count": 4,
             "reservation_date": "2026-06-17",
             "reservation_time": "12:00",
+            "end_time": "14:00",
+            "type": "booking",
             "notes": "Minta meja dekat jendela",
             "status": "pending",
             "guid_cabang": "aaaaaaaa-aaaa-4000-8000-000000000001",
@@ -180,6 +192,8 @@ Mendapatkan daftar reservasi dengan filter.
             "guest_count": 4,
             "reservation_date": "2026-06-17",
             "reservation_time": "12:00",
+            "end_time": "14:00",
+            "type": "booking",
             "notes": "Minta meja dekat jendela",
             "status": "confirmed",
             "guid_cabang": "aaaaaaaa-aaaa-4000-8000-000000000001",
@@ -220,6 +234,8 @@ Mendapatkan daftar reservasi dengan filter.
     "guest_count": 5,
     "reservation_date": "2026-06-17",
     "reservation_time": "13:00",
+    "end_time": "15:00",
+    "type": "booking",
     "notes": "Pindah meja",
     "status": "confirmed",
     "guid_cabang": "aaaaaaaa-aaaa-4000-8000-000000000001"
@@ -237,8 +253,10 @@ Mendapatkan daftar reservasi dengan filter.
 | `guest_count` | nullable, integer, min:1 |
 | `reservation_date` | nullable, date |
 | `reservation_time` | nullable, string |
+| `end_time` | nullable, string |
+| `type` | nullable, string, in:booking,walkin |
 | `notes` | nullable, string, max:500 |
-| `status` | nullable, string, in:pending,confirmed,seated,completed,cancelled |
+| `status` | nullable, string, in:occupied,pending,confirmed,seated,completed,cancelled |
 | `guid_cabang` | nullable, string |
 | `is_active` | nullable, boolean |
 
@@ -257,16 +275,19 @@ Mendapatkan daftar reservasi dengan filter.
             "guest_count": 5,
             "reservation_date": "2026-06-17",
             "reservation_time": "13:00",
+            "end_time": "15:00",
+            "type": "booking",
             "notes": "Pindah meja",
             "status": "confirmed",
             "guid_cabang": "aaaaaaaa-aaaa-4000-8000-000000000001",
             "is_active": true,
             "created_at": "2026-06-17T10:00:00.000000Z",
-            "updated_at": "2026-06-17T14:00:00.000000Z"
+            "updated_at": "2026-06-17T12:35:00.000000Z"
         },
         "message_en": "Reservation updated.",
         "message_id": "Reservasi berhasil diperbarui."
     }
+}
 }
 ```
 
@@ -319,9 +340,11 @@ Menonaktifkan reservasi (soft delete: `is_active = false`).
 | `customer_phone` | string or null | No. telepon |
 | `guest_count` | integer | Jumlah tamu |
 | `reservation_date` | string (date) | Tanggal reservasi (YYYY-MM-DD) |
-| `reservation_time` | string | Jam reservasi (HH:MM) |
+| `reservation_time` | string | Jam mulai reservasi (HH:MM) |
+| `end_time` | string or null | Jam selesai reservasi (HH:MM), null untuk walkin |
+| `type` | string | `booking` (reservasi terjadwal) / `walkin` (dari order langsung) |
 | `notes` | string or null | Catatan tambahan |
-| `status` | string | `pending` / `confirmed` / `seated` / `completed` / `cancelled` |
+| `status` | string | `occupied` / `pending` / `confirmed` / `seated` / `completed` / `cancelled` |
 | `guid_cabang` | string (UUID) | GUID cabang |
 | `is_active` | boolean | Status aktif |
 | `created_at` | string (ISO 8601) | Waktu dibuat |
@@ -330,10 +353,12 @@ Menonaktifkan reservasi (soft delete: `is_active = false`).
 ### Status Flow
 
 ```
-pending → confirmed → seated → completed
-                     ↘ cancelled
+[walkin] occupied → completed
+[booking] pending → confirmed → seated → completed
+                    ↘ cancelled
 ```
 
+- `occupied`: Meja sedang dipakai (walk-in dari order)
 - `pending`: Menunggu konfirmasi
 - `confirmed`: Sudah dikonfirmasi
 - `seated`: Sudah duduk/mulai makan (link ke order)

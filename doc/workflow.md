@@ -798,5 +798,5 @@ Jika stok tidak cukup, order tetap `completed` tapi item yang tidak cukup stokny
 | Shift | ✅ | Migration, model, API (5 endpoint), service, integrasi order, UI monitoring, sidebar nav, navbar pill, seeder demo |
 | Laporan/Report + Export | ✅ | Preview, summary, export CSV async, status, download, dan history tersedia |
 | Inventory History & Stock Movement | ✅ | All components implemented: migration, model, seeder, service, API controllers, web controllers, UI pages, docs, order integration. |
-| Table Reservation | 🟡 | Migration ✅, Model ✅, Seeder ✅, API Controller ✅, Web Controller ✅, UI Page ✅, Sidebar ✅, Routes ✅, Docs ✅. Integrasi order & fitur time-window reservasi menyusul. |
-| Tables (Master Meja) | 🟡 | Migration ✅, Model ✅, Seeder (16 meja) ✅, API Controller ✅, API Doc ✅. Web UI menyusul. |
+| Table Reservation | ✅ | Migration + end_time/type ✅, Model ✅, API Controller ✅, Web Controller ✅, UI Page ✅ (interactive map, polling, filter, pagination), Auto-create walkin dari order ✅, Kosongkan meja ✅, Docs ✅. |
+| Tables (Master Meja) | ✅ | Migration ✅, Model ✅ resolveStatus (time-range) ✅, Seeder (16 meja) ✅, API Controller ✅, Web UI ✅ (filter, pagination, confirm delete), Docs ✅. |

@@ -45,19 +45,20 @@ class ReportController extends Controller
     public function export(Request $request, string $type): JsonResponse
     {
         $filters = $this->validatedFilters($request, $type);
+        $format = in_array($request->input('format'), ['csv', 'xlsx']) ? $request->input('format') : 'csv';
 
         $export = ReportExport::query()->create([
             'guid' => (string) Str::uuid(),
             'type' => $type,
             'status' => 'queued',
             'filters' => $filters,
-            'format' => 'csv',
+            'format' => $format,
             'requested_by' => $request->session()->get('web_auth_user_id'),
         ]);
 
         ExportReportJob::dispatch($export->id);
 
-        return $this->apiResponse('00', 'success', $this->exportData($export), 'Report export queued.', 'Export laporan masuk antrean.', 201);
+        return $this->apiResponse('00', 'success', $this->exportData($export), 'Export queued.', 'Export sedang diantrikan.');
     }
 
     public function exportStatus(string $guid): JsonResponse

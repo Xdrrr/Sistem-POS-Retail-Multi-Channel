@@ -7,6 +7,9 @@ use App\Services\Reports\ReportQueryFactory;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\File;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Throwable;
 
 class ExportReportJob implements ShouldQueue
@@ -25,13 +28,9 @@ class ExportReportJob implements ShouldQueue
 
         File::ensureDirectoryExists($directory);
 
-        $filePath = 'reports/'.$export->guid.'.csv';
+        $extension = $export->format === 'xlsx' ? 'xlsx' : 'csv';
+        $filePath = 'reports/'.$export->guid.'.'.$extension;
         $absolutePath = storage_path('app/'.$filePath);
-        $handle = fopen($absolutePath, 'w');
-
-        if ($handle === false) {
-            throw new \RuntimeException('Unable to create report export file.');
-        }
 
         $rowCount = 0;
 
@@ -41,15 +40,11 @@ class ExportReportJob implements ShouldQueue
                 'started_at' => now(),
             ]);
 
-            fputcsv($handle, $query->exportHeadings());
-
-            $query->exportRows($export->filters ?? [])
-                ->each(function (object $row) use ($handle, $query, &$rowCount): void {
-                    fputcsv($handle, $query->formatRow($row));
-                    $rowCount++;
-                });
-
-            fclose($handle);
+            if ($export->format === 'xlsx') {
+                $rowCount = $this->writeXlsx($query, $export, $absolutePath);
+            } else {
+                $rowCount = $this->writeCsv($query, $export, $absolutePath);
+            }
 
             $export->update([
                 'status' => 'done',
@@ -59,8 +54,6 @@ class ExportReportJob implements ShouldQueue
                 'expired_at' => now()->addDays(7),
             ]);
         } catch (Throwable $exception) {
-            fclose($handle);
-
             if (File::exists($absolutePath)) {
                 File::delete($absolutePath);
             }
@@ -73,5 +66,60 @@ class ExportReportJob implements ShouldQueue
 
             throw $exception;
         }
+    }
+
+    private function writeCsv($query, $export, string $absolutePath): int
+    {
+        $handle = fopen($absolutePath, 'w');
+
+        if ($handle === false) {
+            throw new \RuntimeException('Unable to create export file.');
+        }
+
+        fputcsv($handle, $query->exportHeadings());
+        $rowCount = 0;
+
+        $query->exportRows($export->filters ?? [])
+            ->each(function (object $row) use ($handle, $query, &$rowCount): void {
+                fputcsv($handle, $query->formatRow($row));
+                $rowCount++;
+            });
+
+        fclose($handle);
+
+        return $rowCount;
+    }
+
+    private function writeXlsx($query, $export, string $absolutePath): int
+    {
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $colLetters = [];
+        $headings = $query->exportHeadings();
+        foreach ($headings as $colIndex => $heading) {
+            $colLetter = Coordinate::stringFromColumnIndex($colIndex + 1);
+            $colLetters[] = $colLetter;
+            $sheet->setCellValue($colLetter . '1', $heading);
+            $sheet->getStyle($colLetter . '1')->getFont()->setBold(true);
+            $sheet->getColumnDimension($colLetter)->setAutoSize(true);
+        }
+
+        $rowCount = 0;
+
+        $query->exportRows($export->filters ?? [])
+            ->each(function (object $row) use ($sheet, $query, &$rowCount, $colLetters): void {
+                $rowCount++;
+                $values = $query->formatRow($row);
+                foreach ($values as $colIndex => $value) {
+                    $sheet->setCellValue($colLetters[$colIndex] . ($rowCount + 1), $value);
+                }
+            });
+
+        $writer = new Xlsx($spreadsheet);
+        $writer->save($absolutePath);
+        $spreadsheet->disconnectWorksheets();
+
+        return $rowCount;
     }
 }

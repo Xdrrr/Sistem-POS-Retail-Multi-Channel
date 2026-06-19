@@ -169,12 +169,27 @@ const loadReport = async () => {
     }
 };
 
-const exportReport = async () => {
+const showExportMenu = ref(false);
+const exportFormat = ref('csv');
+
+const toggleExportMenu = () => {
+    showExportMenu.value = !showExportMenu.value;
+    if (showExportMenu.value) {
+        setTimeout(() => {
+            document.addEventListener('click', closeExportMenu, { once: true });
+        }, 0);
+    }
+};
+const closeExportMenu = () => { showExportMenu.value = false; };
+
+const exportReport = async (format) => {
+    exportFormat.value = format;
+    showExportMenu.value = false;
     exporting.value = true;
     error.value = '';
 
     try {
-        const data = await postReport('export');
+        const data = await postReport('export', { format });
         window.location.href = `/reports/exports?export=${data.guid}`;
     } catch (exception) {
         error.value = exception.message;
@@ -257,10 +272,21 @@ onMounted(loadReport);
                     <h1>Reports</h1>
                     <p>{{ activeReport?.title ?? 'Laporan' }}</p>
                 </div>
-                <button class="primary-action" type="button" :disabled="exporting" @click="exportReport">
-                    <span class="material-symbols-outlined">download</span>
-                    {{ exporting ? 'Queueing...' : 'Export CSV' }}
-                </button>
+                <div class="dropdown-wrapper">
+                    <button class="primary-action" type="button" :disabled="exporting" @click="toggleExportMenu">
+                        <span class="material-symbols-outlined">download</span>
+                        {{ exporting ? 'Queueing...' : 'Export' }}
+                        <span class="material-symbols-outlined">arrow_drop_down</span>
+                    </button>
+                    <div v-if="showExportMenu" class="dropdown-menu dropdown-menu--right">
+                        <button class="dropdown-item" type="button" @click="exportReport('csv')">
+                            <span class="material-symbols-outlined">description</span> CSV
+                        </button>
+                        <button class="dropdown-item" type="button" @click="exportReport('xlsx')">
+                            <span class="material-symbols-outlined">table_chart</span> Excel (xlsx)
+                        </button>
+                    </div>
+                </div>
             </section>
 
             <section class="report-tabs" aria-label="Report type">
@@ -891,4 +917,10 @@ td {
         justify-content: center;
     }
 }
+.dropdown-wrapper { position: relative; display: inline-block; }
+.dropdown-menu { position: absolute; top: 100%; margin-top: 4px; z-index: 50; min-width: 180px; border: 1px solid #c6c5d4; border-radius: 8px; background: #fff; box-shadow: 0 8px 24px rgb(0 0 0 / 12%); overflow: hidden; }
+.dropdown-menu--right { right: 0; }
+.dropdown-item { display: flex; width: 100%; align-items: center; gap: 8px; border: 0; padding: 10px 14px; background: #fff; color: #191c1d; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.dropdown-item:hover { background: #f3f4f6; }
+.dropdown-item .material-symbols-outlined { font-size: 18px; }
 </style>

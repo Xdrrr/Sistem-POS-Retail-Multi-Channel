@@ -121,7 +121,7 @@ class OrderPageController extends Controller
             return $order->refresh();
         });
 
-        if ($order->table_number) {
+        if ($order->table_number && $order->order_type === 'dine_in') {
             $table = RestaurantTable::query()->where('table_number', $order->table_number)->first();
             TableReservation::query()->updateOrCreate(
                 [

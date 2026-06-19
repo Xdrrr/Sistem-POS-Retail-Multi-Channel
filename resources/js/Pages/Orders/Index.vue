@@ -1,6 +1,6 @@
 <script setup>
 import { Link, useForm } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import AppNavbar from '../../Components/AppNavbar.vue';
 import AppSidebar from '../../Components/AppSidebar.vue';
 
@@ -29,6 +29,10 @@ const orderForm = useForm({
     payment_method: 'cash',
     payment_amount: 0,
     reference_number: '',
+});
+
+watch(() => orderForm.order_type, (val) => {
+    if (val !== 'dine_in') orderForm.table_number = '';
 });
 
 const paymentForm = useForm({
@@ -229,20 +233,20 @@ const executeDestroy = () => {
                             <input v-model="orderForm.customer_phone" type="text" placeholder="08xxxxxxxxxx" />
                         </label>
                         <label>
+                            <span>Order Type</span>
+                            <select v-model="orderForm.order_type">
+                                <option value="dine_in">Dine In</option>
+                                <option value="takeaway">Takeaway</option>
+                                <option value="delivery">Delivery</option>
+                            </select>
+                        </label>
+                        <label v-if="orderForm.order_type === 'dine_in'">
                             <span>Table</span>
                             <select v-model="orderForm.table_number">
                                 <option value="">Pilih Meja</option>
                                 <option v-for="t in tables" :key="t.guid" :value="t.table_number">
                                     {{ t.table_number }} ({{ t.capacity }} org - {{ t.location }})
                                 </option>
-                            </select>
-                        </label>
-                        <label>
-                            <span>Order Type</span>
-                            <select v-model="orderForm.order_type">
-                                <option value="dine_in">Dine In</option>
-                                <option value="takeaway">Takeaway</option>
-                                <option value="delivery">Delivery</option>
                             </select>
                         </label>
                     </div>
