@@ -3,9 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\RestaurantTable;
+use App\Models\TableReservation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class RestaurantTableController extends Controller
@@ -133,9 +134,10 @@ class RestaurantTableController extends Controller
             return $this->apiResponse('01', 'failed', null, 'Table not found.', 'Meja tidak ditemukan.', 404);
         }
 
-        $table->update(['is_active' => false]);
+        TableReservation::query()->where('table_guid', $table->guid)->update(['table_guid' => null]);
+        $table->delete();
 
-        return $this->apiResponse('00', 'success', null, 'Table deactivated.', 'Meja dinonaktifkan.');
+        return $this->apiResponse('00', 'success', null, 'Table deleted.', 'Meja berhasil dihapus.');
     }
 
     public function statusAll(): JsonResponse

@@ -52,6 +52,7 @@ API authorization:
 API routes are in `routes/api.php`. Because `bootstrap/app.php` sets `apiPrefix: ''`, these routes are mounted without `/api`:
 - Token: `/token/auth`, `/token/refresh`
 - Authentication: `/authentication/login`, `/authentication/user/register`
+- Cabang: `/cabang`, `/cabang/store`, `/cabang/{guid}`, `/cabang/update`, delete `/cabang/{guid}`
 - Categories: `/categories`, `/categories/store`, `/categories/{guid}`, `/categories/update`, delete `/categories/{guid}`
 - Groups: `/groups`, `/groups/store`, `/groups/{guid}`, `/groups/update`, delete `/groups/{guid}`
 - Products: `/products`, `/products/store`, `/products/{guid}`, `/products/update`, delete `/products/{guid}`
@@ -64,6 +65,7 @@ API routes are in `routes/api.php`. Because `bootstrap/app.php` sets `apiPrefix:
 
 Web routes are in `routes/web.php`:
 - `/` dashboard home
+- `/cabang` branch management (CRUD via `/cabang/items/*`)
 - `/catalog` product catalog management
 - `/inventory` inventory stock management
 - `/inventory/history` global riwayat mutasi stok (history at `/inventory/items/{guid}/history`)

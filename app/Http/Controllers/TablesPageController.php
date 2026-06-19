@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Cabang;
 use App\Models\RestaurantTable;
+use App\Models\TableReservation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -31,7 +33,7 @@ class TablesPageController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'table_number' => ['required', 'string', 'max:30', 'unique:orders.tables,table_number'],
+            'table_number' => ['required', 'string', 'max:30', Rule::unique(RestaurantTable::class, 'table_number')],
             'capacity' => ['nullable', 'integer', 'min:1'],
             'location' => ['nullable', 'string', 'in:indoor,outdoor'],
             'status' => ['nullable', 'string', 'in:available,maintenance'],
@@ -55,7 +57,7 @@ class TablesPageController extends Controller
     {
         $table = RestaurantTable::query()->where('guid', $guid)->firstOrFail();
         $validated = $request->validate([
-            'table_number' => ['required', 'string', 'max:30', 'unique:orders.tables,table_number,'.$table->id],
+            'table_number' => ['required', 'string', 'max:30', Rule::unique(RestaurantTable::class, 'table_number')->ignore($table->id)],
             'capacity' => ['nullable', 'integer', 'min:1'],
             'location' => ['nullable', 'string', 'in:indoor,outdoor'],
             'status' => ['nullable', 'string', 'in:available,maintenance'],
@@ -68,9 +70,11 @@ class TablesPageController extends Controller
 
     public function destroy(string $guid): RedirectResponse
     {
-        RestaurantTable::query()->where('guid', $guid)->firstOrFail()->update(['is_active' => false]);
+        $table = RestaurantTable::query()->where('guid', $guid)->firstOrFail();
+        TableReservation::query()->where('table_guid', $table->guid)->update(['table_guid' => null]);
+        $table->delete();
 
-        return redirect()->route('tables.index')->with('success', 'Meja dinonaktifkan.');
+        return redirect()->route('tables.index')->with('success', 'Meja berhasil dihapus.');
     }
 
     private function tableData(RestaurantTable $t, bool $resolveStatus = false): array

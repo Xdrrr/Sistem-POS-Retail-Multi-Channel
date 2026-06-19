@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TableStatusChanged;
 use App\Models\AuthenticationUser;
 use App\Models\InventoryHistory;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductInventory;
+use App\Models\RestaurantTable;
 use App\Services\Inventory\InsufficientStockException;
 use App\Services\Inventory\InventoryService;
 use App\Traits\StoresCatalogImages;
@@ -114,6 +116,10 @@ class OrderPageController extends Controller
             $this->syncPaymentStatus($order->refresh());
         });
 
+        if ($order->table_number) {
+            RestaurantTable::broadcastByTableNumber($order->table_number, 'updated');
+        }
+
         return redirect()->route('orders.index')->with('success', 'Order berhasil dibuat.');
     }
 
@@ -192,6 +198,10 @@ class OrderPageController extends Controller
             $order->update(['status' => 'completed']);
         });
 
+        if ($order->table_number) {
+            RestaurantTable::broadcastByTableNumber($order->table_number, 'updated');
+        }
+
         return redirect()->route('orders.index');
     }
 
@@ -242,6 +252,10 @@ class OrderPageController extends Controller
 
             $order->update(['status' => 'cancelled']);
         });
+
+        if ($order->table_number) {
+            RestaurantTable::broadcastByTableNumber($order->table_number, 'updated');
+        }
 
         return redirect()->route('orders.index');
     }

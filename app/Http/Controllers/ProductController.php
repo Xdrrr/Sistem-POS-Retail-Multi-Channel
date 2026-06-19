@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cabang;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductGroup;
@@ -23,12 +24,12 @@ class ProductController extends Controller
         $validated = $request->validate([
             'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
             'page' => ['nullable', 'integer', 'min:1'],
-            'order' => ['nullable', 'string', 'in:name,description,price,is_active,created_at,updated_at'],
+            'order' => ['nullable', 'string', 'in:name,sku,description,price,guid_cabang,is_active,created_at,updated_at'],
             'sort' => ['nullable', 'string', 'in:ASC,DESC'],
         ]);
 
         $query = Product::query()->with(['category', 'group']);
-        $this->applyFilter($request, $query, ['guid', 'category_guid', 'group_guid']);
+        $this->applyFilter($request, $query, ['guid', 'sku', 'category_guid', 'group_guid', 'guid_cabang', 'is_active']);
 
         $products = $query->get()
             ->map(fn (Product $product): array => $this->productData($product));
@@ -48,12 +49,14 @@ class ProductController extends Controller
 
         $product = Product::query()->create([
             'guid' => (string) Str::uuid(),
+            'sku' => $validated['sku'] ?? null,
             'category_guid' => $validated['category_guid'],
             'group_guid' => $validated['group_guid'],
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'image' => $this->storeCatalogImage($request, 'products'),
             'price' => $validated['price'] ?? 0,
+            'guid_cabang' => $validated['guid_cabang'] ?? null,
             'is_active' => $validated['is_active'] ?? true,
         ]);
 
@@ -100,12 +103,14 @@ class ProductController extends Controller
         $validated = $validator->validated();
 
         $product->update([
+            'sku' => $validated['sku'] ?? $product->sku,
             'category_guid' => $validated['category_guid'],
             'group_guid' => $validated['group_guid'],
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'image' => $this->storeCatalogImage($request, 'products', $product->image),
             'price' => $validated['price'] ?? $product->price,
+            'guid_cabang' => $validated['guid_cabang'] ?? $product->guid_cabang,
             'is_active' => $validated['is_active'] ?? $product->is_active,
         ]);
 
@@ -137,12 +142,14 @@ class ProductController extends Controller
     private function rules(?Product $product = null): array
     {
         return [
+            'sku' => ['nullable', 'string', 'max:50', Rule::unique(Product::class, 'sku')->ignore($product?->id)],
             'category_guid' => ['required', 'string', Rule::exists(Category::class, 'guid')],
             'group_guid' => ['required', 'string', Rule::exists(ProductGroup::class, 'guid')],
             'name' => ['required', 'string', 'max:150', Rule::unique(Product::class, 'name')->ignore($product?->id)],
             'description' => ['nullable', 'string'],
             'image' => $this->imageRule(),
             'price' => ['nullable', 'numeric', 'min:0'],
+            'guid_cabang' => ['nullable', 'string', Rule::exists(Cabang::class, 'guid')],
             'is_active' => ['nullable', 'boolean'],
         ];
     }
@@ -151,11 +158,13 @@ class ProductController extends Controller
     {
         return [
             'guid' => $product->guid,
+            'sku' => $product->sku,
             'name' => $product->name,
             'description' => $product->description,
             'image' => $product->image,
             'image_url' => $this->catalogImageUrl($product->image),
             'price' => $product->price,
+            'guid_cabang' => $product->guid_cabang,
             'is_active' => $product->is_active,
             'category' => [
                 'guid' => $product->category?->guid,

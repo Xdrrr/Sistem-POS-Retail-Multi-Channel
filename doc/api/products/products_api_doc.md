@@ -25,6 +25,8 @@ Semua endpoint products menggunakan middleware `EnsureApiToken`.
     "filter": {
         "set_guid": false,
         "guid": "33333333-3333-4333-8333-000000000001",
+        "set_sku": true,
+        "sku": "SKU-001",
         "set_category_guid": true,
         "category_guid": "11111111-1111-4111-8111-000000000001",
         "set_group_guid": false,
@@ -48,6 +50,8 @@ Semua endpoint products menggunakan middleware `EnsureApiToken`.
 | `filter` | nullable, array |
 | `filter.set_guid` | nullable, boolean |
 | `filter.guid` | nullable, string |
+| `filter.set_sku` | nullable, boolean |
+| `filter.sku` | nullable, string |
 | `filter.set_category_guid` | nullable, boolean |
 | `filter.category_guid` | nullable, string |
 | `filter.set_group_guid` | nullable, boolean |
@@ -142,7 +146,7 @@ Semua endpoint products menggunakan middleware `EnsureApiToken`.
 | `sku` | nullable, string, max:50, unique |
 | `category_guid` | required, string, exists:categories |
 | `group_guid` | required, string, exists:groups |
-| `guid_cabang` | nullable, string |
+| `guid_cabang` | nullable, string, exists:cabang |
 | `name` | required, string, max:150, unique |
 | `description` | nullable, string |
 | `image` | nullable, image file |
@@ -261,7 +265,7 @@ Semua endpoint products menggunakan middleware `EnsureApiToken`.
 | `sku` | nullable, string, max:50, unique (ignore self) |
 | `category_guid` | required, string, exists |
 | `group_guid` | required, string, exists |
-| `guid_cabang` | nullable, string |
+| `guid_cabang` | nullable, string, exists:cabang |
 | `name` | required, string, max:150, unique (ignore self) |
 | `description` | nullable, string |
 | `image` | nullable, image file |

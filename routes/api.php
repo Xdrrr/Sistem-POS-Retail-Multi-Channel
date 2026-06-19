@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthenticationController;
+use App\Http\Controllers\CabangController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\InventoryAdjustmentController;
 use App\Http\Controllers\InventoryController;
@@ -29,6 +30,13 @@ Route::prefix('authentication')->group(function (): void {
 });
 
 Route::middleware(EnsureApiToken::class)->group(function (): void {
+    // Cabang
+    Route::post('/cabang', [CabangController::class, 'index']);
+    Route::post('/cabang/store', [CabangController::class, 'store']);
+    Route::get('/cabang/{guid}', [CabangController::class, 'show'])->whereUuid('guid');
+    Route::put('/cabang/update', [CabangController::class, 'update']);
+    Route::delete('/cabang/{guid}', [CabangController::class, 'destroy'])->whereUuid('guid');
+
     // Categories
     Route::post('/categories', [CategoryController::class, 'index']);
     Route::post('/categories/store', [CategoryController::class, 'store']);

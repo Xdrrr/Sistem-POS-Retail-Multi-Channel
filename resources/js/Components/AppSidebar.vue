@@ -13,6 +13,7 @@ const navItems = [
     { label: 'History <br> Export', icon: 'history', href: '/reports/exports' },
     { label: 'Products', icon: 'inventory_2', href: '/catalog' },
     { label: 'Inventory', icon: 'warehouse', href: '/inventory' },
+    { label: 'Cabang', icon: 'store', href: '/cabang' },
     // { label: 'Sync Center', icon: 'sync', href: '#' },
     { label: 'Settings', icon: 'settings', href: '/settings/profile' },
 ];

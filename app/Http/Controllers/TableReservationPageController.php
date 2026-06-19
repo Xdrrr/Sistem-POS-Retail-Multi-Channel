@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TableStatusChanged;
 use App\Models\Cabang;
 use App\Models\RestaurantTable;
 use App\Models\TableReservation;
@@ -71,12 +72,15 @@ class TableReservationPageController extends Controller
             'is_active' => true,
         ]);
 
+        RestaurantTable::broadcastByTableNumber($validated['table_number'], 'updated');
+
         return redirect()->route('reservations.index')->with('success', 'Reservasi berhasil dibuat.');
     }
 
     public function update(Request $request, string $guid): RedirectResponse
     {
         $reservation = TableReservation::query()->where('guid', $guid)->firstOrFail();
+        $oldTableNumber = $reservation->table_number;
         $validated = $request->validate([
             'table_number' => ['required', 'string', 'max:30'],
             'customer_name' => ['required', 'string', 'max:150'],
@@ -90,12 +94,21 @@ class TableReservationPageController extends Controller
 
         $reservation->update($validated);
 
+        $tablesToBroadcast = array_unique([$oldTableNumber, $validated['table_number']]);
+        foreach ($tablesToBroadcast as $tn) {
+            RestaurantTable::broadcastByTableNumber($tn, 'updated');
+        }
+
         return redirect()->route('reservations.index')->with('success', 'Reservasi berhasil diperbarui.');
     }
 
     public function destroy(string $guid): RedirectResponse
     {
-        TableReservation::query()->where('guid', $guid)->firstOrFail()->update(['is_active' => false]);
+        $reservation = TableReservation::query()->where('guid', $guid)->firstOrFail();
+        $tableNumber = $reservation->table_number;
+        $reservation->update(['is_active' => false]);
+
+        RestaurantTable::broadcastByTableNumber($tableNumber, 'updated');
 
         return redirect()->route('reservations.index')->with('success', 'Reservasi dibatalkan.');
     }

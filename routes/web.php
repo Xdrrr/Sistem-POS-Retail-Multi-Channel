@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthPageController;
+use App\Http\Controllers\CabangPageController;
 use App\Http\Controllers\CatalogPageController;
 use App\Http\Controllers\HomePageController;
 use App\Http\Controllers\InventoryPageController;
@@ -57,6 +58,11 @@ Route::middleware(EnsureWebAuthenticated::class)->group(function (): void {
 
     Route::get('/shifts', [ShiftPageController::class, 'index'])->name('shifts.index');
     Route::get('/shifts/{guid}', [ShiftPageController::class, 'show'])->name('shifts.show');
+
+    Route::get('/cabang', [CabangPageController::class, 'index'])->name('cabang.index');
+    Route::post('/cabang/items', [CabangPageController::class, 'store'])->name('cabang.store');
+    Route::put('/cabang/items/{guid}', [CabangPageController::class, 'update'])->name('cabang.update');
+    Route::delete('/cabang/items/{guid}', [CabangPageController::class, 'destroy'])->name('cabang.destroy');
 
     Route::get('/tables', [TablesPageController::class, 'index'])->name('tables.index');
     Route::post('/tables', [TablesPageController::class, 'store'])->name('tables.store');
