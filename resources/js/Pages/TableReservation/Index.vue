@@ -151,14 +151,14 @@ const closeModal = () => {
 const submit = () => {
     const options = { preserveScroll: true, onSuccess: closeModal };
     if (editing.value) {
-        form.transform((d) => ({ ...d, _method: 'put' })).post(`/reservations/${editing.value.guid}`, options);
+        form.transform((d) => ({ ...d, _method: 'put' })).post(`/reservations/items/${editing.value.guid}`, options);
         return;
     }
-    form.post('/reservations', options);
+    form.post('/reservations/items', options);
 };
 
 const destroyItem = (item) => {
-    form.delete(`/reservations/${item.guid}`, { preserveScroll: true });
+    form.delete(`/reservations/items/${item.guid}`, { preserveScroll: true });
 };
 
 const confirmDelete = ref(null);

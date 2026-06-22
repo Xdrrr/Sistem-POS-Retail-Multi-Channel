@@ -292,6 +292,9 @@ Report query rules:
 - Large report queries should use SQL aggregates, not collection `get()->sum()`.
 - Export should stream/chunk data instead of loading everything into memory.
 - Whitelist sort columns. Do not pass raw request order columns to `orderBy`.
+- Export supports two formats: `csv` (default, via `fputcsv`) and `xlsx` (via PhpSpreadsheet with auto-width columns).
+- Format is accepted as `format` parameter (csv/xlsx) in the export request.
+- `ExportReportJob` handles both formats via separate methods (`writeCsv`, `writeXlsx`).
 
 ## API Prefix
 `bootstrap/app.php` currently sets `apiPrefix: ''`, so API routes are mounted without the `/api` prefix.
@@ -302,6 +305,20 @@ Examples:
 - Use `/inventory`, not `/api/inventory`.
 
 If a future change adds `apiPrefix: 'api'`, update API docs, AGENTS.md, and clients together.
+
+## Product API Fields
+- `Product` model includes `sku` (unique, nullable) and `guid_cabang` fields.
+- `ProductController::productData()` returns `sku` and `guid_cabang` in response.
+- `ProductController::rules()` validates `sku` (unique) and `guid_cabang` (exists in `Cabang`).
+- Product list supports filtering by `set_sku`, `set_guid_cabang`, `set_is_active`.
+
+## Cabang CRUD
+- `Cabang` model, migration, seeder (PUSAT, CBG1, CBG2).
+- `CabangController` — API CRUD with Filterable trait.
+- `CabangPageController` — Web/Inertia CRUD.
+- `Cabang/Index.vue` — Filter panel, pagination, modal CRUD.
+- API: `/cabang`, `/cabang/store`, `/cabang/{guid}`, `/cabang/update`, `/cabang/{guid}` (DELETE).
+- Web: `/cabang` (GET), `/cabang/items` (POST), `/cabang/items/{guid}` (PUT/DELETE).
 
 ## API Filter Pattern
 List endpoints use the `set_` filter convention:
@@ -346,12 +363,22 @@ Seeder branch defaults:
 
 ## Tables & Reservations
 - `orders.tables` stores master table data with static status (available/maintenance).
-- Real-time status (occupied/reserved) is calculated via `RestaurantTable::resolveStatus()`:
-  - If active `open` order exists → `occupied`
-  - If today has active `pending`/`confirmed` reservation → `reserved`
-  - If status manually set to `maintenance` → `maintenance`
+- Real-time status via `RestaurantTable::resolveStatus()`:
+  - If reservation `status = occupied` (walk-in from order) → `occupied`
+  - If `open` order exists with matching `table_number` → `occupied` (legacy fallback)
+  - If today has `pending`/`confirmed` reservation and current time <= `end_time` → `reserved`
+  - If `maintenance` → `maintenance`
   - Otherwise → `available`
-- Current behavior: table shows as `reserved` for the entire day once there's a reservation. Future improvement: use time-window (e.g., H-3 to H+2) instead of full-day.
+- `orders.table_reservations` has columns: `end_time` (TIME nullable), `type` (booking/walkin)
+- Reservation statuses: `occupied` (walk-in from dine-in order), `pending`, `confirmed`, `seated`, `completed`, `cancelled`
+- Time-range: bookings with `end_time` set only show as `reserved` until end_time passes. Without `end_time` (or walkin), reserved all day.
+- Interactive table map on reservation page with real-time polling (10s), "Kosongkan" button for occupied, "Edit" button for reserved.
+- Auto-create reservation (type=walkin, status=occupied) when dine-in order created with table_number.
+- Auto-complete walkin reservation when order is completed or cancelled.
+- Release endpoint: `/reservations/{guid}/release` (POST) — completes reservation + clears order table_number.
+- Release order endpoint: `/orders/{guid}/release-table` (POST) — clears order table_number directly.
+- Orders page: Table select only visible for `dine_in` order type; hidden for `takeaway`/`delivery`.
+- Seeder: `takeaway`/`delivery` orders have `table_number = null`.
 
 ## Development Notes
 - Prefer existing Laravel/Eloquent patterns in the repo.

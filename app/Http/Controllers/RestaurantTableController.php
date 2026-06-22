@@ -7,6 +7,7 @@ use App\Models\TableReservation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class RestaurantTableController extends Controller
@@ -68,7 +69,7 @@ class RestaurantTableController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'table_number' => ['required', 'string', 'max:30', Rule::unique('orders.tables', 'table_number')],
+            'table_number' => ['required', 'string', 'max:30', Rule::unique(RestaurantTable::class, 'table_number')],
             'capacity' => ['nullable', 'integer', 'min:1'],
             'location' => ['nullable', 'string', 'in:indoor,outdoor'],
             'status' => ['nullable', 'string', 'in:available,maintenance'],
@@ -102,7 +103,7 @@ class RestaurantTableController extends Controller
     public function update(Request $request): JsonResponse
     {
         $request->validate([
-            'guid' => ['required', 'string', Rule::exists('orders.tables', 'guid')],
+            'guid' => ['required', 'string', Rule::exists(RestaurantTable::class, 'guid')],
         ]);
 
         $table = RestaurantTable::query()->where('guid', $request->string('guid')->toString())->first();
@@ -113,7 +114,7 @@ class RestaurantTableController extends Controller
 
         $validated = $request->validate([
             'guid' => ['required', 'string'],
-            'table_number' => ['nullable', 'string', 'max:30', Rule::unique('orders.tables', 'table_number')->ignore($table->id)],
+            'table_number' => ['nullable', 'string', 'max:30', Rule::unique(RestaurantTable::class, 'table_number')->ignore($table->id)],
             'capacity' => ['nullable', 'integer', 'min:1'],
             'location' => ['nullable', 'string', 'in:indoor,outdoor'],
             'status' => ['nullable', 'string', 'in:available,occupied,reserved,maintenance'],

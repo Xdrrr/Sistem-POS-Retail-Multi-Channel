@@ -65,14 +65,14 @@ Route::middleware(EnsureWebAuthenticated::class)->group(function (): void {
     Route::delete('/cabang/items/{guid}', [CabangPageController::class, 'destroy'])->name('cabang.destroy');
 
     Route::get('/tables', [TablesPageController::class, 'index'])->name('tables.index');
-    Route::post('/tables', [TablesPageController::class, 'store'])->name('tables.store');
-    Route::put('/tables/{guid}', [TablesPageController::class, 'update'])->name('tables.update');
-    Route::delete('/tables/{guid}', [TablesPageController::class, 'destroy'])->name('tables.destroy');
+    Route::post('/tables/items', [TablesPageController::class, 'store'])->name('tables.store');
+    Route::put('/tables/items/{guid}', [TablesPageController::class, 'update'])->name('tables.update');
+    Route::delete('/tables/items/{guid}', [TablesPageController::class, 'destroy'])->name('tables.destroy');
 
     Route::get('/reservations', [TableReservationPageController::class, 'index'])->name('reservations.index');
-    Route::post('/reservations', [TableReservationPageController::class, 'store'])->name('reservations.store');
-    Route::put('/reservations/{guid}', [TableReservationPageController::class, 'update'])->name('reservations.update');
-    Route::delete('/reservations/{guid}', [TableReservationPageController::class, 'destroy'])->name('reservations.destroy');
+    Route::post('/reservations/items', [TableReservationPageController::class, 'store'])->name('reservations.store');
+    Route::put('/reservations/items/{guid}', [TableReservationPageController::class, 'update'])->name('reservations.update');
+    Route::delete('/reservations/items/{guid}', [TableReservationPageController::class, 'destroy'])->name('reservations.destroy');
     Route::post('/reservations/{guid}/release', [TableReservationPageController::class, 'release'])->name('reservations.release');
     Route::post('/orders/{guid}/release-table', [TableReservationPageController::class, 'releaseOrderTable'])->name('orders.release-table');
 

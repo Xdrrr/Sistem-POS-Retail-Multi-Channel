@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\RestaurantTable;
 use App\Models\TableReservation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -72,7 +73,7 @@ class TableReservationController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'table_guid' => ['nullable', 'string', Rule::exists('orders.tables', 'guid')],
+            'table_guid' => ['nullable', 'string', Rule::exists(RestaurantTable::class, 'guid')],
             'table_number' => ['required', 'string', 'max:30'],
             'customer_name' => ['required', 'string', 'max:150'],
             'customer_phone' => ['nullable', 'string', 'max:30'],
@@ -127,7 +128,7 @@ class TableReservationController extends Controller
     public function update(Request $request): JsonResponse
     {
         $request->validate([
-            'guid' => ['required', 'string', Rule::exists('orders.table_reservations', 'guid')],
+            'guid' => ['required', 'string', Rule::exists(TableReservation::class, 'guid')],
         ]);
 
         $reservation = TableReservation::query()->where('guid', $request->string('guid')->toString())->first();
@@ -138,7 +139,7 @@ class TableReservationController extends Controller
 
         $validated = $request->validate([
             'guid' => ['required', 'string'],
-            'table_guid' => ['nullable', 'string', Rule::exists('orders.tables', 'guid')],
+            'table_guid' => ['nullable', 'string', Rule::exists(RestaurantTable::class, 'guid')],
             'table_number' => ['nullable', 'string', 'max:30'],
             'customer_name' => ['nullable', 'string', 'max:150'],
             'customer_phone' => ['nullable', 'string', 'max:30'],

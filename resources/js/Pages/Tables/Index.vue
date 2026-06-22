@@ -80,13 +80,13 @@ const closeModal = () => { modalOpen.value = false; resetForm(); };
 const resetForm = () => { form.reset(); form.clearErrors(); form.table_number = ''; form.capacity = 4; form.location = 'indoor'; form.status = 'available'; editing.value = null; };
 const submit = () => {
     const opts = { preserveScroll: true, onSuccess: closeModal };
-    if (editing.value) { form.transform((d) => ({ ...d, _method: 'put' })).post(`/tables/${editing.value.guid}`, opts); return; }
-    form.post('/tables', opts);
+    if (editing.value) { form.transform((d) => ({ ...d, _method: 'put' })).post(`/tables/items/${editing.value.guid}`, opts); return; }
+    form.post('/tables/items', opts);
 };
 const confirmDestroy = (item) => { confirmDelete.value = item; };
 const executeDestroy = () => {
     if (!confirmDelete.value) return;
-    form.delete(`/tables/${confirmDelete.value.guid}`, { preserveScroll: true });
+    form.delete(`/tables/items/${confirmDelete.value.guid}`, { preserveScroll: true });
     confirmDelete.value = null;
 };
 const changePage = (p) => { currentPage.value = Math.max(1, Math.min(meta.value.last_page, p)); };

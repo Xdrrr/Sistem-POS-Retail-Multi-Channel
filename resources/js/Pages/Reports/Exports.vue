@@ -174,7 +174,7 @@ onMounted(loadHistory);
                 <div class="history-filter">
                     <label>
                         <span>Report</span>
-                        <select v-model="filters.type">
+                        <select v-model="filters.type" @change="loadHistory">
                             <option value="">All reports</option>
                             <option v-for="report in reportTypes" :key="report.key" :value="report.key">{{ report.title }}</option>
                         </select>
@@ -182,7 +182,7 @@ onMounted(loadHistory);
 
                     <label>
                         <span>Status</span>
-                        <select v-model="filters.status">
+                        <select v-model="filters.status" @change="loadHistory">
                             <option value="">All status</option>
                             <option v-for="status in exportStatusOptions" :key="status" :value="status">{{ status }}</option>
                         </select>
@@ -190,12 +190,12 @@ onMounted(loadHistory);
 
                     <label>
                         <span>From</span>
-                        <input v-model="filters.from_datetime" type="datetime-local" />
+                        <input v-model="filters.from_datetime" type="datetime-local" @change="loadHistory" />
                     </label>
 
                     <label>
                         <span>To</span>
-                        <input v-model="filters.to_datetime" type="datetime-local" />
+                        <input v-model="filters.to_datetime" type="datetime-local" @change="loadHistory" />
                     </label>
 
                     <button class="secondary-action" type="button" @click="resetFilters">
@@ -203,9 +203,9 @@ onMounted(loadHistory);
                         Reset
                     </button>
 
-                    <button class="primary-action" type="button" :disabled="loading" @click="loadHistory">
+                    <!-- <button class="primary-action" type="button" :disabled="loading" @click="loadHistory">
                         {{ loading ? 'Loading...' : 'Filter' }}
-                    </button>
+                    </button> -->
                 </div>
             </section>
 
