@@ -6,6 +6,7 @@ use App\Http\Controllers\CatalogPageController;
 use App\Http\Controllers\HomePageController;
 use App\Http\Controllers\InventoryPageController;
 use App\Http\Controllers\OrderPageController;
+use App\Http\Controllers\PermissionPageController;
 use App\Http\Controllers\ProfilePageController;
 use App\Http\Controllers\TableReservationPageController;
 use App\Http\Controllers\TablesPageController;
@@ -70,6 +71,9 @@ Route::middleware(EnsureWebAuthenticated::class)->group(function (): void {
     Route::post('/roles/items', [RolePageController::class, 'store'])->name('roles.store');
     Route::put('/roles/items/{guid}', [RolePageController::class, 'update'])->name('roles.update');
     Route::delete('/roles/items/{guid}', [RolePageController::class, 'destroy'])->name('roles.destroy');
+
+    Route::get('/permissions', [PermissionPageController::class, 'index'])->name('permissions.index');
+    Route::put('/permissions/role/{guid}', [PermissionPageController::class, 'update'])->name('permissions.update');
 
     Route::get('/cabang', [CabangPageController::class, 'index'])->name('cabang.index');
     Route::post('/cabang/items', [CabangPageController::class, 'store'])->name('cabang.store');

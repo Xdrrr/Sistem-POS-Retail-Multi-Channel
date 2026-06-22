@@ -15,6 +15,7 @@ const navItems = [
     { label: 'Inventory', icon: 'warehouse', href: '/inventory' },
     { label: 'Cabang', icon: 'store', href: '/cabang' },
     { label: 'Users', icon: 'manage_accounts', href: '/users' },
+    { label: 'Permissions', icon: 'manage_accounts', href: '/permissions' },
     // { label: 'Sync Center', icon: 'sync', href: '#' },
     { label: 'Settings', icon: 'settings', href: '/settings/profile' },
 ];

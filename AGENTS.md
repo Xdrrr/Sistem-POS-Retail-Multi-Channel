@@ -74,6 +74,9 @@ Web routes are in `routes/web.php`:
 - `/reservations` table reservation management
 - `/reports`, `/reports/exports`, `/reports/{type}/preview`, `/reports/{type}/summary`, `/reports/{type}/export`, export status/download routes
 - `/settings/profile`
+- `/users` and `/users/items/*` user management
+- `/roles` and `/roles/items/*` role management
+- `/permissions` permission management per role
 
 ## Frontend Responsive Rules
 - Global dashboard responsive behavior lives in `resources/css/app.css`.
@@ -389,10 +392,36 @@ Seeder branch defaults:
 ### Web Controllers
 - `App\Http\Controllers\RolePageController` — Web CRUD roles via Inertia. Routes at `/roles/items/*`.
 - `App\Http\Controllers\UserPageController` — Web CRUD users via Inertia. Routes at `/users/items/*`.
+- `App\Http\Controllers\PermissionPageController` — Web permission management. Routes at `/permissions` (index), `/permissions/role/{guid}` (update).
 
 ### Vue Pages
-- `resources/js/Pages/Users/Index.vue` — User management with search, filter by role/status, modal CRUD, button to Kelola Role
-- `resources/js/Pages/Roles/Index.vue` — Role management with modal CRUD, shows users_count, delete protection
+- `resources/js/Pages/Users/Index.vue` — User management with search, filter by role/status, modal CRUD, button to Permission & Role
+- `resources/js/Pages/Roles/Index.vue` — Role management with modal CRUD, shows users_count, delete protection, button to Permission
+- `resources/js/Pages/Permissions/Index.vue` — Permission management per role with grouped checkboxes
+
+## Permission System
+
+### Tables
+- `authentication.permissions` — master permissions (name, display_name, group, type)
+- `authentication.role_permissions` — pivot role ↔ permission
+
+### Models
+- `App\Models\Permission` — Model for `authentication.permissions`
+- `AuthenticationRole::permissions()` — BelongsToMany relation to permissions
+- `AuthenticationRole::hasPermission(name)` — check if role has a specific permission
+
+### Middleware
+- `App\Http\Middleware\EnsurePermission` — checks `role->hasPermission()`. Supports web (session) and API (token) auth.
+- Registered as alias `permission` in `bootstrap/app.php`.
+- Usage: `Route::middleware('permission:api.orders.store')` or `$this->middleware('permission:menu.reports')`.
+
+### Seeder
+- `database/seeders/PermissionSeeder.php` — seeds 69 permissions (11 web + 58 API) and assigns to roles:
+  - `Superadmin`: all permissions
+  - `Owner`: dashboard, reports, exports (web only)
+  - `Manager`: all web menus + API read/operational
+  - `Cashier`: API orders, payments, products, shift, tables, reservations (no web)
+  - `Users`: none
 
 ### API Routes (under `EnsureApiToken`)
 | Method | URI | Controller |

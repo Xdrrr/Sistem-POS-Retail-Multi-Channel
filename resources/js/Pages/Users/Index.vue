@@ -119,9 +119,13 @@ const changePage = (p) => { currentPage.value = Math.max(1, Math.min(meta.value.
                     <p>Kelola pengguna sistem.</p>
                 </div>
                 <div class="page-actions">
+                    <Link class="secondary-action" href="/permissions">
+                        <span class="material-symbols-outlined">manage_accounts</span>
+                        Permission
+                    </Link>
                     <Link class="secondary-action" href="/roles">
                         <span class="material-symbols-outlined">security</span>
-                        Kelola Role
+                        Role
                     </Link>
                     <button class="primary-action" type="button" @click="openCreate">
                         <span class="material-symbols-outlined fill">add_circle</span>

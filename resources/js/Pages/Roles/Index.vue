@@ -57,9 +57,13 @@ const executeDestroy = () => {
                     <p>Kelola role/hak akses pengguna.</p>
                 </div>
                 <div class="page-actions">
+                    <Link class="secondary-action" href="/permissions">
+                        <span class="material-symbols-outlined">manage_accounts</span>
+                        Permission
+                    </Link>
                     <Link class="secondary-action" href="/users">
                         <span class="material-symbols-outlined">arrow_back</span>
-                        Kembali ke Users
+                        Users
                     </Link>
                     <button class="primary-action" type="button" @click="openCreate">
                         <span class="material-symbols-outlined fill">add_circle</span>
