@@ -41,10 +41,12 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => fn (): ?array => $this->userData($request),
             ],
-            'flash' => [
-                'success' => fn (): ?string => $request->session()->get('success'),
-                'error' => fn (): ?string => $request->session()->get('error'),
-            ],
+            'flash' => $request->header('X-Inertia-Partial-Data')
+                ? []
+                : [
+                    'success' => fn (): ?string => $request->session()->get('success'),
+                    'error' => fn (): ?string => $request->session()->get('error'),
+                ],
         ];
     }
 
