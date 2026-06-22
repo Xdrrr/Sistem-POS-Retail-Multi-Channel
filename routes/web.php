@@ -11,7 +11,9 @@ use App\Http\Controllers\TableReservationPageController;
 use App\Http\Controllers\TablesPageController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ReportPageController;
+use App\Http\Controllers\RolePageController;
 use App\Http\Controllers\ShiftPageController;
+use App\Http\Controllers\UserPageController;
 use App\Http\Middleware\EnsureWebAuthenticated;
 use App\Http\Middleware\RedirectIfWebAuthenticated;
 use Illuminate\Support\Facades\Route;
@@ -58,6 +60,16 @@ Route::middleware(EnsureWebAuthenticated::class)->group(function (): void {
 
     Route::get('/shifts', [ShiftPageController::class, 'index'])->name('shifts.index');
     Route::get('/shifts/{guid}', [ShiftPageController::class, 'show'])->name('shifts.show');
+
+    Route::get('/users', [UserPageController::class, 'index'])->name('users.index');
+    Route::post('/users/items', [UserPageController::class, 'store'])->name('users.store');
+    Route::put('/users/items/{guid}', [UserPageController::class, 'update'])->name('users.update');
+    Route::delete('/users/items/{guid}', [UserPageController::class, 'destroy'])->name('users.destroy');
+
+    Route::get('/roles', [RolePageController::class, 'index'])->name('roles.index');
+    Route::post('/roles/items', [RolePageController::class, 'store'])->name('roles.store');
+    Route::put('/roles/items/{guid}', [RolePageController::class, 'update'])->name('roles.update');
+    Route::delete('/roles/items/{guid}', [RolePageController::class, 'destroy'])->name('roles.destroy');
 
     Route::get('/cabang', [CabangPageController::class, 'index'])->name('cabang.index');
     Route::post('/cabang/items', [CabangPageController::class, 'store'])->name('cabang.store');

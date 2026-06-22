@@ -15,13 +15,13 @@ class OrderStatusReportQuery extends ReportQuery
 
     public function columns(): array
     {
-        return ['status', 'payment_status', 'order_count', 'total_amount'];
+        return ['cabang', 'status', 'payment_status', 'order_count', 'total_amount'];
     }
 
     public function preview(array $filters): LengthAwarePaginator
     {
         $query = $this->baseQuery($filters);
-        $this->applySort($query, $filters, ['status' => 'status', 'payment_status' => 'payment_status', 'order_count' => 'order_count', 'total_amount' => 'total_amount'], 'order_count');
+        $this->applySort($query, $filters, ['cabang' => 'cb.kode', 'status' => 'status', 'payment_status' => 'payment_status', 'order_count' => 'order_count', 'total_amount' => 'total_amount'], 'order_count');
 
         return $this->paginate($query, $filters);
     }
@@ -41,7 +41,7 @@ class OrderStatusReportQuery extends ReportQuery
 
     public function exportHeadings(): array
     {
-        return ['Status', 'Payment Status', 'Order Count', 'Total Amount'];
+        return ['Cabang', 'Status', 'Payment Status', 'Order Count', 'Total Amount'];
     }
 
     public function exportRows(array $filters): LazyCollection
@@ -51,16 +51,18 @@ class OrderStatusReportQuery extends ReportQuery
 
     public function formatRow(object $row): array
     {
-        return [$row->status, $row->payment_status, $row->order_count, $row->total_amount];
+        return [$row->cabang_kode, $row->status, $row->payment_status, $row->order_count, $row->total_amount];
     }
 
     private function baseQuery(array $filters)
     {
         $query = DB::table('orders.orders as o')
+            ->leftJoin('authentication.cabang as cb', 'cb.guid', '=', 'o.guid_cabang')
             ->select(['o.status', 'o.payment_status'])
+            ->selectRaw("COALESCE(NULLIF(cb.kode, ''), 'PUSAT') as cabang_kode")
             ->selectRaw('COUNT(*) as order_count')
             ->selectRaw('COALESCE(SUM(o.total_amount), 0) as total_amount')
-            ->groupBy('o.status', 'o.payment_status');
+            ->groupBy('o.status', 'o.payment_status', 'cb.kode');
 
         $this->applyDateRange($query, $filters, 'o.ordered_at');
         $this->applyInFilter($query, $filters, 'guid_cabang', 'o.guid_cabang');

@@ -15,7 +15,7 @@ class PaymentReportQuery extends ReportQuery
 
     public function columns(): array
     {
-        return ['payment_number', 'order_number', 'customer_name', 'method', 'status', 'amount', 'paid_at', 'reference_number'];
+        return ['payment_number', 'order_number', 'customer_name', 'cabang', 'method', 'status', 'amount', 'paid_at', 'reference_number'];
     }
 
     public function preview(array $filters): LengthAwarePaginator
@@ -23,6 +23,7 @@ class PaymentReportQuery extends ReportQuery
         $query = $this->baseQuery($filters);
         $this->applySort($query, $filters, [
             'payment_number' => 'p.payment_number',
+            'cabang' => 'cb.kode',
             'method' => 'p.method',
             'status' => 'p.status',
             'amount' => 'p.amount',
@@ -53,7 +54,7 @@ class PaymentReportQuery extends ReportQuery
 
     public function exportHeadings(): array
     {
-        return ['Payment Number', 'Order Number', 'Customer Name', 'Method', 'Status', 'Amount', 'Paid At', 'Reference Number', 'Notes'];
+        return ['Cabang', 'Payment Number', 'Order Number', 'Customer Name', 'Method', 'Status', 'Amount', 'Paid At', 'Reference Number', 'Notes'];
     }
 
     public function exportRows(array $filters): LazyCollection
@@ -65,18 +66,19 @@ class PaymentReportQuery extends ReportQuery
 
     public function formatRow(object $row): array
     {
-        return [$row->payment_number, $row->order_number, $row->customer_name, $row->method, $row->status, $row->amount, $row->paid_at, $row->reference_number, $row->notes];
+        return [$row->cabang_kode, $row->payment_number, $row->order_number, $row->customer_name, $row->method, $row->status, $row->amount, $row->paid_at, $row->reference_number, $row->notes];
     }
 
     private function baseQuery(array $filters)
     {
         $query = DB::table('orders.payments as p')
             ->leftJoin('orders.orders as o', 'o.guid', '=', 'p.order_guid')
-            ->select(['p.id', 'p.payment_number', 'o.order_number', 'o.customer_name', 'p.method', 'p.status', 'p.amount', 'p.paid_at', 'p.reference_number', 'p.notes']);
+            ->leftJoin('authentication.cabang as cb', 'cb.guid', '=', 'o.guid_cabang')
+            ->select(['p.id', 'p.payment_number', 'o.order_number', 'o.customer_name', 'p.method', 'p.status', 'p.amount', 'p.paid_at', 'p.reference_number', 'p.notes', 'cb.kode as cabang_kode']);
 
         $this->applyDateRange($query, $filters, 'p.paid_at');
         $this->applyInFilter($query, $filters, 'methods', 'p.method');
-        $this->applyInFilter($query, $filters, 'guid_cabang', 'p.guid_cabang');
+        $this->applyInFilter($query, $filters, 'guid_cabang', 'o.guid_cabang');
         $this->applyInFilter($query, $filters, 'statuses', 'p.status');
 
         return $query;

@@ -113,9 +113,19 @@ HandleInertiaRequests (global)
 | GET | `/reports/exports/{guid}` | `ReportController@exportStatus` | Cek status export |
 | GET | `/reports/exports/{guid}/download` | `ReportController@download` | Download hasil export |
 | GET | `/reservations` | `TableReservationPageController@index` | Manajemen reservasi meja |
-| POST | `/reservations` | `TableReservationPageController@store` | Buat reservasi |
-| PUT | `/reservations/{guid}` | `TableReservationPageController@update` | Update reservasi |
-| DELETE | `/reservations/{guid}` | `TableReservationPageController@destroy` | Batalkan reservasi |
+| POST | `/reservations/items` | `TableReservationPageController@store` | Buat reservasi |
+| PUT | `/reservations/items/{guid}` | `TableReservationPageController@update` | Update reservasi |
+| DELETE | `/reservations/items/{guid}` | `TableReservationPageController@destroy` | Batalkan reservasi |
+| POST | `/reservations/{guid}/release` | `TableReservationPageController@release` | Lepas meja dari reservasi |
+| POST | `/orders/{guid}/release-table` | `TableReservationPageController@releaseOrderTable` | Lepas meja dari order |
+| GET | `/users` | `UserPageController@index` | Manajemen user |
+| POST | `/users/items` | `UserPageController@store` | Tambah user |
+| PUT | `/users/items/{guid}` | `UserPageController@update` | Update user |
+| DELETE | `/users/items/{guid}` | `UserPageController@destroy` | Nonaktifkan user |
+| GET | `/roles` | `RolePageController@index` | Manajemen role |
+| POST | `/roles/items` | `RolePageController@store` | Tambah role |
+| PUT | `/roles/items/{guid}` | `RolePageController@update` | Update role |
+| DELETE | `/roles/items/{guid}` | `RolePageController@destroy` | Hapus role |
 | GET | `/settings/profile` | `ProfilePageController@edit` | Edit profil |
 | PUT | `/settings/profile` | `ProfilePageController@update` | Update profil |
 
@@ -189,6 +199,16 @@ Setiap request API wajib header: `Authorization: Bearer {token}`
 | GET | `/reservations/{guid}` | `TableReservationController@show` |
 | PUT | `/reservations/update` | `TableReservationController@update` |
 | DELETE | `/reservations/{guid}` | `TableReservationController@destroy` |
+| POST | `/roles` | `RoleController@index` |
+| POST | `/roles/store` | `RoleController@store` |
+| GET | `/roles/{guid}` | `RoleController@show` |
+| PUT | `/roles/update` | `RoleController@update` |
+| DELETE | `/roles/{guid}` | `RoleController@destroy` |
+| POST | `/users` | `UserController@index` |
+| POST | `/users/store` | `UserController@store` |
+| GET | `/users/{guid}` | `UserController@show` |
+| PUT | `/users/update` | `UserController@update` |
+| DELETE | `/users/{guid}` | `UserController@destroy` |
 | POST | `/shift/store` | `ShiftApiController@store` |
 | PUT | `/shift/close` | `ShiftApiController@close` |
 | GET | `/shift/active` | `ShiftApiController@active` |

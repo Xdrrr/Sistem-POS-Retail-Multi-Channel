@@ -1,6 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import AppNavbar from '../../Components/AppNavbar.vue';
 import AppSidebar from '../../Components/AppSidebar.vue';
 
@@ -114,7 +114,37 @@ const refreshExport = async (item) => {
     if (response.ok && payload.response?.data) {
         const index = exportsList.value.findIndex((exportItem) => exportItem.guid === item.guid);
         if (index >= 0) exportsList.value[index] = payload.response.data;
+        return payload.response.data;
     }
+    return null;
+};
+
+const autoDownload = (item) => {
+    if (item.status === 'done' && item.download_url) {
+        const a = document.createElement('a');
+        a.href = item.download_url;
+        a.download = '';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        return true;
+    }
+    return false;
+};
+
+let pollTimer = null;
+
+const pollExport = async (guid) => {
+    if (!guid) return;
+    const item = exportsList.value.find((e) => e.guid === guid);
+    if (!item) return;
+
+    if (autoDownload(item)) return;
+
+    const updated = await refreshExport(item);
+    if (updated && autoDownload(updated)) return;
+
+    pollTimer = setTimeout(() => pollExport(guid), 2000);
 };
 
 const resetFilters = () => {
@@ -132,7 +162,17 @@ const changePage = (page) => {
     loadHistory();
 };
 
-onMounted(loadHistory);
+onMounted(() => {
+    loadHistory().then(() => {
+        if (selectedGuid.value) {
+            pollExport(selectedGuid.value);
+        }
+    });
+});
+
+onUnmounted(() => {
+    if (pollTimer) clearTimeout(pollTimer);
+});
 </script>
 
 <template>

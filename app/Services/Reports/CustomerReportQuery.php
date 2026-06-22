@@ -15,7 +15,7 @@ class CustomerReportQuery extends ReportQuery
 
     public function columns(): array
     {
-        return ['customer_name', 'customer_phone', 'order_count', 'total_spent', 'last_ordered_at'];
+        return ['customer_name', 'customer_phone', 'cabang', 'order_count', 'total_spent', 'last_ordered_at'];
     }
 
     public function preview(array $filters): LengthAwarePaginator
@@ -23,6 +23,7 @@ class CustomerReportQuery extends ReportQuery
         $query = $this->baseQuery($filters);
         $this->applySort($query, $filters, [
             'customer_name' => 'customer_name',
+            'cabang' => 'cb.kode',
             'order_count' => 'order_count',
             'total_spent' => 'total_spent',
             'last_ordered_at' => 'last_ordered_at',
@@ -48,7 +49,7 @@ class CustomerReportQuery extends ReportQuery
 
     public function exportHeadings(): array
     {
-        return ['Customer Name', 'Customer Phone', 'Order Count', 'Total Spent', 'Last Ordered At'];
+        return ['Customer Name', 'Customer Phone', 'Cabang', 'Order Count', 'Total Spent', 'Last Ordered At'];
     }
 
     public function exportRows(array $filters): LazyCollection
@@ -58,18 +59,20 @@ class CustomerReportQuery extends ReportQuery
 
     public function formatRow(object $row): array
     {
-        return [$row->customer_name, $row->customer_phone, $row->order_count, $row->total_spent, $row->last_ordered_at];
+        return [$row->customer_name, $row->customer_phone, $row->cabang_kode, $row->order_count, $row->total_spent, $row->last_ordered_at];
     }
 
     private function baseQuery(array $filters)
     {
         $query = DB::table('orders.orders as o')
+            ->leftJoin('authentication.cabang as cb', 'cb.guid', '=', 'o.guid_cabang')
             ->selectRaw("COALESCE(NULLIF(o.customer_name, ''), 'Walk-in') as customer_name")
             ->selectRaw("COALESCE(NULLIF(o.customer_phone, ''), '-') as customer_phone")
+            ->selectRaw("COALESCE(NULLIF(cb.kode, ''), 'PUSAT') as cabang_kode")
             ->selectRaw('COUNT(*) as order_count')
             ->selectRaw('COALESCE(SUM(o.total_amount), 0) as total_spent')
             ->selectRaw('MAX(o.ordered_at) as last_ordered_at')
-            ->groupByRaw("COALESCE(NULLIF(o.customer_name, ''), 'Walk-in'), COALESCE(NULLIF(o.customer_phone, ''), '-')");
+            ->groupByRaw("COALESCE(NULLIF(o.customer_name, ''), 'Walk-in'), COALESCE(NULLIF(o.customer_phone, ''), '-'), cb.kode");
 
         $this->applyDateRange($query, $filters, 'o.ordered_at');
         $this->applyInFilter($query, $filters, 'guid_cabang', 'o.guid_cabang');

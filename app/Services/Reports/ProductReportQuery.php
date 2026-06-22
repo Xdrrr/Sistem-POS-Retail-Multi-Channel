@@ -15,7 +15,7 @@ class ProductReportQuery extends ReportQuery
 
     public function columns(): array
     {
-        return ['product_name', 'category_name', 'group_name', 'quantity', 'subtotal', 'order_count'];
+        return ['product_name', 'sku', 'category_name', 'group_name', 'cabang', 'quantity', 'subtotal', 'order_count'];
     }
 
     public function preview(array $filters): LengthAwarePaginator
@@ -23,6 +23,7 @@ class ProductReportQuery extends ReportQuery
         $query = $this->baseQuery($filters);
         $this->applySort($query, $filters, [
             'product_name' => 'oi.product_name',
+            'cabang' => 'cb.kode',
             'quantity' => 'quantity',
             'subtotal' => 'subtotal',
             'order_count' => 'order_count',
@@ -48,7 +49,7 @@ class ProductReportQuery extends ReportQuery
 
     public function exportHeadings(): array
     {
-        return ['Product Name', 'Category', 'Group', 'Quantity', 'Subtotal', 'Order Count'];
+        return ['Product Name', 'SKU', 'Category', 'Group', 'Cabang', 'Quantity', 'Subtotal', 'Order Count'];
     }
 
     public function exportRows(array $filters): LazyCollection
@@ -58,7 +59,7 @@ class ProductReportQuery extends ReportQuery
 
     public function formatRow(object $row): array
     {
-        return [$row->product_name, $row->category_name, $row->group_name, $row->quantity, $row->subtotal, $row->order_count];
+        return [$row->product_name, $row->sku, $row->category_name, $row->group_name, $row->cabang_kode, $row->quantity, $row->subtotal, $row->order_count];
     }
 
     private function baseQuery(array $filters)
@@ -68,11 +69,12 @@ class ProductReportQuery extends ReportQuery
             ->leftJoin('product.products as p', 'p.guid', '=', 'oi.product_guid')
             ->leftJoin('product.categories as c', 'c.guid', '=', 'p.category_guid')
             ->leftJoin('product.groups as g', 'g.guid', '=', 'p.group_guid')
-            ->select(['oi.product_guid', 'oi.product_name', 'c.name as category_name', 'g.name as group_name'])
+            ->leftJoin('authentication.cabang as cb', 'cb.guid', '=', 'o.guid_cabang')
+            ->select(['oi.product_guid', 'oi.product_name', 'c.name as category_name', 'g.name as group_name', 'p.sku', 'cb.kode as cabang_kode'])
             ->selectRaw('COALESCE(SUM(oi.quantity), 0) as quantity')
             ->selectRaw('COALESCE(SUM(oi.subtotal), 0) as subtotal')
             ->selectRaw('COUNT(DISTINCT oi.order_guid) as order_count')
-            ->groupBy('oi.product_guid', 'oi.product_name', 'c.name', 'g.name');
+            ->groupBy('oi.product_guid', 'oi.product_name', 'c.name', 'g.name', 'p.sku', 'cb.kode');
 
         $this->applyDateRange($query, $filters, 'o.ordered_at');
         $this->applyInFilter($query, $filters, 'guid_cabang', 'o.guid_cabang');

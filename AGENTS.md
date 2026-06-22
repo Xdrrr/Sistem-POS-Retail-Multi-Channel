@@ -380,6 +380,70 @@ Seeder branch defaults:
 - Orders page: Table select only visible for `dine_in` order type; hidden for `takeaway`/`delivery`.
 - Seeder: `takeaway`/`delivery` orders have `table_number = null`.
 
+## Users & Roles CRUD
+
+### API Controllers
+- `App\Http\Controllers\RoleController` — API CRUD roles (index, store, show, update, destroy). Uses `Filterable` trait. Delete fails if role has users.
+- `App\Http\Controllers\UserController` — API CRUD users. Search by username/name/email (ILIKE), filter by role_name/guid_cabang/is_active. Password hashing via SHA-256 + salt (base64).
+
+### Web Controllers
+- `App\Http\Controllers\RolePageController` — Web CRUD roles via Inertia. Routes at `/roles/items/*`.
+- `App\Http\Controllers\UserPageController` — Web CRUD users via Inertia. Routes at `/users/items/*`.
+
+### Vue Pages
+- `resources/js/Pages/Users/Index.vue` — User management with search, filter by role/status, modal CRUD, button to Kelola Role
+- `resources/js/Pages/Roles/Index.vue` — Role management with modal CRUD, shows users_count, delete protection
+
+### API Routes (under `EnsureApiToken`)
+| Method | URI | Controller |
+|---|---|---|
+| POST | `/roles` | `RoleController@index` |
+| POST | `/roles/store` | `RoleController@store` |
+| GET | `/roles/{guid}` | `RoleController@show` |
+| PUT | `/roles/update` | `RoleController@update` |
+| DELETE | `/roles/{guid}` | `RoleController@destroy` |
+| POST | `/users` | `UserController@index` |
+| POST | `/users/store` | `UserController@store` |
+| GET | `/users/{guid}` | `UserController@show` |
+| PUT | `/users/update` | `UserController@update` |
+| DELETE | `/users/{guid}` | `UserController@destroy` |
+
+### Web Routes (under `EnsureWebAuthenticated`)
+| Method | URI | Controller |
+|---|---|---|
+| GET | `/users` | `UserPageController@index` |
+| POST | `/users/items` | `UserPageController@store` |
+| PUT | `/users/items/{guid}` | `UserPageController@update` |
+| DELETE | `/users/items/{guid}` | `UserPageController@destroy` |
+| GET | `/roles` | `RolePageController@index` |
+| POST | `/roles/items` | `RolePageController@store` |
+| PUT | `/roles/items/{guid}` | `RolePageController@update` |
+| DELETE | `/roles/items/{guid}` | `RolePageController@destroy` |
+
+### Password Rules
+- Hash: `base64_encode(hash('sha256', $password.$salt, true))`
+- Salt: `base64_encode(random_bytes(16))`
+- Create: password + confirm_password required
+- Update: password + confirm_password optional (kosongkan jika tidak diubah)
+
+## Report Export Columns
+
+All report exports now include `Cabang` (`cb.kode`) column added via left join to `authentication.cabang`.
+
+| Report | Additional Columns |
+|---|---|
+| Sales | `Cabang` |
+| Payments | `Cabang` (via `o.guid_cabang`) |
+| Products | `SKU`, `Cabang` |
+| Financial | `Cabang` (grouped per period + cabang) |
+| Customers | `Cabang` |
+| Order Status | `Cabang` |
+| Catalog | `SKU`, `Cabang` |
+
+## AppSidebar Scroll Behavior
+- Desktop: entire `nav.side-nav` scrolls vertically (`overflow-y: auto`, `scroll-behavior: smooth`). Scrollbar hidden (`scrollbar-width: none`, `::-webkit-scrollbar { display: none }`).
+- Mobile (<720px): entire `nav.side-nav` scrolls horizontally (`overflow-x: auto`). All items visible (no `display: none`). Scrollbar hidden.
+
 ## Development Notes
 - Prefer existing Laravel/Eloquent patterns in the repo.
 - Keep controller logic thin when adding larger modules; put business logic in services.

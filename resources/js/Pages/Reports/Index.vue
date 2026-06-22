@@ -273,10 +273,16 @@ onMounted(loadReport);
                     <p>{{ activeReport?.title ?? 'Laporan' }}</p>
                 </div>
                 <div class="dropdown-wrapper">
+                    <Link class="secondary-action mr-3" href="/reports/exports">
+                        <span class="material-symbols-outlined">history</span>
+                        Download History
+                    </Link>
+
                     <button class="primary-action" type="button" :disabled="exporting" @click="toggleExportMenu">
-                        <span class="material-symbols-outlined">download</span>
-                        {{ exporting ? 'Queueing...' : 'Export' }}
-                        <span class="material-symbols-outlined">arrow_drop_down</span>
+                        <span v-if="exporting" class="spinner"></span>
+                        <span v-else class="material-symbols-outlined">download</span>
+                        {{ exporting ? 'Processing...' : 'Export' }}
+                        <span v-if="!exporting" class="material-symbols-outlined">arrow_drop_down</span>
                     </button>
                     <div v-if="showExportMenu" class="dropdown-menu dropdown-menu--right">
                         <button class="dropdown-item" type="button" @click="exportReport('csv')">
@@ -923,4 +929,6 @@ td {
 .dropdown-item { display: flex; width: 100%; align-items: center; gap: 8px; border: 0; padding: 10px 14px; background: #fff; color: #191c1d; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .dropdown-item:hover { background: #f3f4f6; }
 .dropdown-item .material-symbols-outlined { font-size: 18px; }
+.spinner { display: inline-block; width: 18px; height: 18px; border: 2.5px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

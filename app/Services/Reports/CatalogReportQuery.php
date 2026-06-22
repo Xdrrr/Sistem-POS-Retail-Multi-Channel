@@ -15,13 +15,13 @@ class CatalogReportQuery extends ReportQuery
 
     public function columns(): array
     {
-        return ['name', 'category_name', 'group_name', 'price', 'is_active'];
+        return ['name', 'sku', 'category_name', 'group_name', 'cabang', 'price', 'is_active'];
     }
 
     public function preview(array $filters): LengthAwarePaginator
     {
         $query = $this->baseQuery($filters);
-        $this->applySort($query, $filters, ['name' => 'p.name', 'price' => 'p.price', 'is_active' => 'p.is_active'], 'p.name', 'ASC');
+        $this->applySort($query, $filters, ['name' => 'p.name', 'cabang' => 'cb.kode', 'price' => 'p.price', 'is_active' => 'p.is_active'], 'p.name', 'ASC');
 
         return $this->paginate($query, $filters);
     }
@@ -45,7 +45,7 @@ class CatalogReportQuery extends ReportQuery
 
     public function exportHeadings(): array
     {
-        return ['Product Name', 'Category', 'Group', 'Price', 'Active', 'Description'];
+        return ['Product Name', 'SKU', 'Category', 'Group', 'Cabang', 'Price', 'Active', 'Description'];
     }
 
     public function exportRows(array $filters): LazyCollection
@@ -55,7 +55,7 @@ class CatalogReportQuery extends ReportQuery
 
     public function formatRow(object $row): array
     {
-        return [$row->name, $row->category_name, $row->group_name, $row->price, $row->is_active ? 'active' : 'inactive', $row->description];
+        return [$row->name, $row->sku, $row->category_name, $row->group_name, $row->cabang_kode, $row->price, $row->is_active ? 'active' : 'inactive', $row->description];
     }
 
     private function baseQuery(array $filters)
@@ -63,7 +63,8 @@ class CatalogReportQuery extends ReportQuery
         $query = DB::table('product.products as p')
             ->leftJoin('product.categories as c', 'c.guid', '=', 'p.category_guid')
             ->leftJoin('product.groups as g', 'g.guid', '=', 'p.group_guid')
-            ->select(['p.id', 'p.name', 'p.description', 'p.price', 'p.is_active', 'c.name as category_name', 'g.name as group_name']);
+            ->leftJoin('authentication.cabang as cb', 'cb.guid', '=', 'p.guid_cabang')
+            ->select(['p.id', 'p.name', 'p.sku', 'p.description', 'p.price', 'p.is_active', 'c.name as category_name', 'g.name as group_name', 'cb.kode as cabang_kode']);
 
         $this->applyInFilter($query, $filters, 'guid_cabang', 'p.guid_cabang');
         $this->applyInFilter($query, $filters, 'category_guids', 'p.category_guid');

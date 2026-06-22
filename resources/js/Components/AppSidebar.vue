@@ -10,10 +10,11 @@ const navItems = [
     { label: 'Tables', icon: 'grid_view', href: '/tables' },
     { label: 'Shift', icon: 'calendar_today', href: '/shifts' },
     { label: 'Reports', icon: 'bar_chart', href: '/reports' },
-    { label: 'History <br> Export', icon: 'history', href: '/reports/exports' },
+    // { label: 'History <br> Export', icon: 'history', href: '/reports/exports' },
     { label: 'Products', icon: 'inventory_2', href: '/catalog' },
     { label: 'Inventory', icon: 'warehouse', href: '/inventory' },
     { label: 'Cabang', icon: 'store', href: '/cabang' },
+    { label: 'Users', icon: 'manage_accounts', href: '/users' },
     // { label: 'Sync Center', icon: 'sync', href: '#' },
     { label: 'Settings', icon: 'settings', href: '/settings/profile' },
 ];
@@ -74,13 +75,20 @@ const isActive = (item) => {
     display: flex;
     width: 80px;
     flex-direction: column;
-    justify-content: space-between;
     border-right: 1px solid #c6c5d4;
     background: #ffffff;
     padding: 24px 8px;
+    overflow-y: auto;
+    scroll-behavior: smooth;
 }
 
-.side-nav__main,
+.side-nav::-webkit-scrollbar { display: none; }
+.side-nav { scrollbar-width: none; -ms-overflow-style: none; }
+
+.side-nav__main {
+    width: 100%;
+}
+
 .nav-list {
     display: flex;
     flex-direction: column;
@@ -173,26 +181,40 @@ const isActive = (item) => {
         width: 100%;
         height: 72px;
         flex-direction: row;
-        padding: 8px;
+        padding: 8px 0;
         border-top: 1px solid #c6c5d4;
         border-right: 0;
+        overflow-y: hidden;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
     }
 
+    .side-nav::-webkit-scrollbar { display: none; }
+
     .branch-card,
-    .nav-item:nth-child(n + 6),
     .nav-item--footer {
         display: none;
     }
 
-    .nav-list,
     .side-nav__main {
-        flex: 1;
+        width: auto;
+        display: flex;
         flex-direction: row;
-        justify-content: space-around;
+        align-items: center;
+        flex-shrink: 0;
+        gap: 2px;
+        padding: 0 4px;
+    }
+
+    .nav-list {
+        flex-direction: row;
     }
 
     .nav-item {
         width: 58px;
+        min-height: 48px;
+        flex-shrink: 0;
     }
 }
 </style>

@@ -15,13 +15,13 @@ class FinancialReportQuery extends ReportQuery
 
     public function columns(): array
     {
-        return ['period', 'order_count', 'subtotal', 'discount_amount', 'tax_amount', 'total_amount'];
+        return ['period', 'cabang', 'order_count', 'subtotal', 'discount_amount', 'tax_amount', 'total_amount'];
     }
 
     public function preview(array $filters): LengthAwarePaginator
     {
         $query = $this->baseQuery($filters);
-        $this->applySort($query, $filters, ['period' => 'period', 'total_amount' => 'total_amount', 'order_count' => 'order_count'], 'period');
+        $this->applySort($query, $filters, ['period' => 'period', 'cabang' => 'cb.kode', 'total_amount' => 'total_amount', 'order_count' => 'order_count'], 'period');
 
         return $this->paginate($query, $filters);
     }
@@ -47,7 +47,7 @@ class FinancialReportQuery extends ReportQuery
 
     public function exportHeadings(): array
     {
-        return ['Period', 'Order Count', 'Subtotal', 'Discount', 'Tax', 'Total'];
+        return ['Period', 'Cabang', 'Order Count', 'Subtotal', 'Discount', 'Tax', 'Total'];
     }
 
     public function exportRows(array $filters): LazyCollection
@@ -57,19 +57,21 @@ class FinancialReportQuery extends ReportQuery
 
     public function formatRow(object $row): array
     {
-        return [$row->period, $row->order_count, $row->subtotal, $row->discount_amount, $row->tax_amount, $row->total_amount];
+        return [$row->period, $row->cabang_kode, $row->order_count, $row->subtotal, $row->discount_amount, $row->tax_amount, $row->total_amount];
     }
 
     private function baseQuery(array $filters)
     {
         $query = DB::table('orders.orders as o')
+            ->leftJoin('authentication.cabang as cb', 'cb.guid', '=', 'o.guid_cabang')
             ->selectRaw('DATE(o.ordered_at) as period')
+            ->selectRaw("COALESCE(NULLIF(cb.kode, ''), 'PUSAT') as cabang_kode")
             ->selectRaw('COUNT(*) as order_count')
             ->selectRaw('COALESCE(SUM(o.subtotal), 0) as subtotal')
             ->selectRaw('COALESCE(SUM(o.discount_amount), 0) as discount_amount')
             ->selectRaw('COALESCE(SUM(o.tax_amount), 0) as tax_amount')
             ->selectRaw('COALESCE(SUM(o.total_amount), 0) as total_amount')
-            ->groupByRaw('DATE(o.ordered_at)');
+            ->groupByRaw('DATE(o.ordered_at), cb.kode');
 
         $this->applyDateRange($query, $filters, 'o.ordered_at');
         $this->applyInFilter($query, $filters, 'guid_cabang', 'o.guid_cabang');

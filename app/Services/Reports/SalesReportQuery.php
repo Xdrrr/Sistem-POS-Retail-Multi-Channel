@@ -15,7 +15,7 @@ class SalesReportQuery extends ReportQuery
 
     public function columns(): array
     {
-        return ['order_number', 'customer', 'order_type', 'status', 'payment_status', 'subtotal', 'discount_amount', 'tax_amount', 'total_amount', 'ordered_at'];
+        return ['order_number', 'customer', 'cabang', 'order_type', 'status', 'payment_status', 'subtotal', 'discount_amount', 'tax_amount', 'total_amount', 'ordered_at'];
     }
 
     public function preview(array $filters): LengthAwarePaginator
@@ -24,6 +24,7 @@ class SalesReportQuery extends ReportQuery
         $this->applySort($query, $filters, [
             'order_number' => 'o.order_number',
             'customer_name' => 'o.customer_name',
+            'cabang' => 'cb.kode',
             'order_type' => 'o.order_type',
             'status' => 'o.status',
             'payment_status' => 'o.payment_status',
@@ -57,7 +58,7 @@ class SalesReportQuery extends ReportQuery
 
     public function exportHeadings(): array
     {
-        return ['Order Number', 'Customer Name', 'Customer Phone', 'Table', 'Order Type', 'Status', 'Payment Status', 'Subtotal', 'Discount', 'Tax', 'Total', 'Ordered At', 'Notes'];
+        return ['Cabang', 'Order Number', 'Customer Name', 'Customer Phone', 'Table', 'Order Type', 'Status', 'Payment Status', 'Subtotal', 'Discount', 'Tax', 'Total', 'Ordered At', 'Notes'];
     }
 
     public function exportRows(array $filters): LazyCollection
@@ -69,13 +70,14 @@ class SalesReportQuery extends ReportQuery
 
     public function formatRow(object $row): array
     {
-        return [$row->order_number, $row->customer_name, $row->customer_phone, $row->table_number, $row->order_type, $row->status, $row->payment_status, $row->subtotal, $row->discount_amount, $row->tax_amount, $row->total_amount, $row->ordered_at, $row->notes];
+        return [$row->cabang_kode, $row->order_number, $row->customer_name, $row->customer_phone, $row->table_number, $row->order_type, $row->status, $row->payment_status, $row->subtotal, $row->discount_amount, $row->tax_amount, $row->total_amount, $row->ordered_at, $row->notes];
     }
 
     private function baseQuery(array $filters)
     {
         $query = DB::table('orders.orders as o')
-            ->select(['o.id', 'o.order_number', 'o.customer_name', 'o.customer_phone', 'o.table_number', 'o.order_type', 'o.status', 'o.payment_status', 'o.subtotal', 'o.discount_amount', 'o.tax_amount', 'o.total_amount', 'o.ordered_at', 'o.notes']);
+            ->leftJoin('authentication.cabang as cb', 'cb.guid', '=', 'o.guid_cabang')
+            ->select(['o.id', 'o.order_number', 'o.customer_name', 'o.customer_phone', 'o.table_number', 'o.order_type', 'o.status', 'o.payment_status', 'o.subtotal', 'o.discount_amount', 'o.tax_amount', 'o.total_amount', 'o.ordered_at', 'o.notes', 'cb.kode as cabang_kode']);
 
         $this->applyDateRange($query, $filters, 'o.ordered_at');
         $this->applyInFilter($query, $filters, 'guid_cabang', 'o.guid_cabang');
