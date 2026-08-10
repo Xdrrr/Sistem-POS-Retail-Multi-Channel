@@ -2,15 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Web\Profile\UpdateProfileRequest;
 use App\Models\AuthenticationUser;
+use App\Traits\HashesPasswords;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ProfilePageController extends Controller
 {
+    use HashesPasswords;
     public function edit(Request $request): Response
     {
         $user = $this->currentUser($request);
@@ -30,21 +32,10 @@ class ProfilePageController extends Controller
         ]);
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(UpdateProfileRequest $request): RedirectResponse
     {
         $user = $this->currentUser($request);
-        $validated = $request->validate([
-            'fullname' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique(AuthenticationUser::class, 'username')->ignore($user->id)],
-            'phone_number' => ['nullable', 'string', 'max:50'],
-            'gender' => ['required', Rule::in(['Laki-laki', 'Perempuan', 'Tidak-Spesifik'])],
-            'address' => ['nullable', 'string'],
-            'city' => ['nullable', 'string', 'max:255'],
-            'province' => ['nullable', 'string', 'max:255'],
-            'date_of_birth' => ['nullable', 'date_format:Y-m-d'],
-            'password' => ['nullable', 'string', 'min:6'],
-            'confirm_password' => ['nullable', 'required_with:password', 'same:password'],
-        ]);
+        $validated = $request->validated();
 
         $user->update([
             'username' => $validated['email'],
@@ -81,10 +72,5 @@ class ProfilePageController extends Controller
         return AuthenticationUser::query()
             ->with(['role', 'detail'])
             ->findOrFail($request->session()->get('web_auth_user_id'));
-    }
-
-    private function passwordHash(string $password, string $salt): string
-    {
-        return base64_encode(hash('sha256', $password.$salt, true));
     }
 }

@@ -2,26 +2,27 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AuthenticationUser;
+use App\Http\Requests\Web\Order\StoreOrderPaymentPageRequest;
+use App\Http\Requests\Web\Order\StoreOrderRequest;
 use App\Models\InventoryHistory;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductInventory;
 use App\Models\RestaurantTable;
 use App\Models\TableReservation;
-use App\Services\Inventory\InsufficientStockException;
 use App\Services\Inventory\InventoryService;
+use App\Traits\ResolvesAuthUserGuid;
 use App\Traits\StoresCatalogImages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class OrderPageController extends Controller
 {
+    use ResolvesAuthUserGuid;
     use StoresCatalogImages;
 
     public function index(): Response
@@ -56,9 +57,9 @@ class OrderPageController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreOrderRequest $request): RedirectResponse
     {
-        $validated = $request->validate($this->orderRules());
+        $validated = $request->validated();
 
         $order = DB::transaction(function () use ($validated): Order {
             $items = collect($validated['items'])->map(function (array $item): array {
@@ -145,15 +146,10 @@ class OrderPageController extends Controller
         return redirect()->route('orders.index')->with('success', 'Order berhasil dibuat.');
     }
 
-    public function storePayment(Request $request, string $guid): RedirectResponse
+    public function storePayment(StoreOrderPaymentPageRequest $request, string $guid): RedirectResponse
     {
         $order = Order::query()->where('guid', $guid)->firstOrFail();
-        $validated = $request->validate([
-            'method' => ['required', 'string', 'in:cash,debit_card,credit_card,qris,transfer,e_wallet'],
-            'amount' => ['required', 'numeric', 'min:0.01'],
-            'reference_number' => ['nullable', 'string', 'max:100'],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $validated = $request->validated();
 
         DB::transaction(function () use ($order, $validated): void {
             $order->payments()->create([
@@ -286,39 +282,6 @@ class OrderPageController extends Controller
             ->update(['status' => 'completed']);
 
         return redirect()->route('orders.index')->with('success', 'Order berhasil dibatalkan.');
-    }
-
-    private function authUserGuid(Request $request): ?string
-    {
-        $userId = $request->session()->get('web_auth_user_id');
-
-        if (! $userId) {
-            return null;
-        }
-
-        return AuthenticationUser::query()->where('id', $userId)->value('guid');
-    }
-
-    private function orderRules(): array
-    {
-        return [
-            'customer_name' => ['nullable', 'string', 'max:150'],
-            'customer_phone' => ['nullable', 'string', 'max:30'],
-            'table_number' => ['nullable', 'string', 'max:30'],
-            'order_type' => ['required', 'string', 'in:dine_in,takeaway,delivery'],
-            'discount_amount' => ['nullable', 'numeric', 'min:0'],
-            'tax_amount' => ['nullable', 'numeric', 'min:0'],
-            'notes' => ['nullable', 'string'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.product_guid' => ['required', 'string', Rule::exists(Product::class, 'guid')],
-            'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
-            'items.*.unit_price' => ['required', 'numeric', 'min:0'],
-            'items.*.discount_amount' => ['nullable', 'numeric', 'min:0'],
-            'items.*.notes' => ['nullable', 'string'],
-            'payment_method' => ['nullable', 'string', 'in:cash,debit_card,credit_card,qris,transfer,e_wallet'],
-            'payment_amount' => ['nullable', 'numeric', 'min:0'],
-            'reference_number' => ['nullable', 'string', 'max:100'],
-        ];
     }
 
     private function syncPaymentStatus(Order $order): void

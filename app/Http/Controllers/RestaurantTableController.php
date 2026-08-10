@@ -2,35 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Table\IndexTableRequest;
+use App\Http\Requests\Table\StoreTableRequest;
+use App\Http\Requests\Table\UpdateTableRequest;
 use App\Models\RestaurantTable;
 use App\Models\TableReservation;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class RestaurantTableController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(IndexTableRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'filter' => ['nullable', 'array'],
-            'filter.set_guid' => ['nullable', 'boolean'],
-            'filter.guid' => ['nullable', 'string'],
-            'filter.set_table_number' => ['nullable', 'boolean'],
-            'filter.table_number' => ['nullable', 'string', 'max:30'],
-            'filter.set_location' => ['nullable', 'boolean'],
-            'filter.location' => ['nullable', 'string', 'in:indoor,outdoor'],
-            'filter.set_status' => ['nullable', 'boolean'],
-            'filter.status' => ['nullable', 'string', 'in:available,occupied,reserved,maintenance'],
-            'filter.set_guid_cabang' => ['nullable', 'boolean'],
-            'filter.guid_cabang' => ['nullable', 'string'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'order' => ['nullable', 'string', 'in:table_number,capacity,location,status,created_at'],
-            'sort' => ['nullable', 'string', 'in:ASC,DESC'],
-        ]);
+        $validated = $request->validated();
 
         $filter = $validated['filter'] ?? [];
         $limit = min((int) ($validated['limit'] ?? 20), 100);
@@ -66,15 +50,9 @@ class RestaurantTableController extends Controller
         return $this->apiResponse('00', 'success', $items);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreTableRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'table_number' => ['required', 'string', 'max:30', Rule::unique(RestaurantTable::class, 'table_number')],
-            'capacity' => ['nullable', 'integer', 'min:1'],
-            'location' => ['nullable', 'string', 'in:indoor,outdoor'],
-            'status' => ['nullable', 'string', 'in:available,maintenance'],
-            'guid_cabang' => ['nullable', 'string'],
-        ]);
+        $validated = $request->validated();
 
         $table = RestaurantTable::query()->create([
             'guid' => (string) Str::uuid(),
@@ -100,27 +78,14 @@ class RestaurantTableController extends Controller
         return $this->apiResponse('00', 'success', $this->tableData($table));
     }
 
-    public function update(Request $request): JsonResponse
+    public function update(UpdateTableRequest $request): JsonResponse
     {
-        $request->validate([
-            'guid' => ['required', 'string', Rule::exists(RestaurantTable::class, 'guid')],
-        ]);
-
-        $table = RestaurantTable::query()->where('guid', $request->string('guid')->toString())->first();
+        $validated = $request->validated();
+        $table = RestaurantTable::query()->where('guid', $validated['guid'])->first();
 
         if (! $table) {
             return $this->apiResponse('01', 'failed', null, 'Table not found.', 'Meja tidak ditemukan.', 404);
         }
-
-        $validated = $request->validate([
-            'guid' => ['required', 'string'],
-            'table_number' => ['nullable', 'string', 'max:30', Rule::unique(RestaurantTable::class, 'table_number')->ignore($table->id)],
-            'capacity' => ['nullable', 'integer', 'min:1'],
-            'location' => ['nullable', 'string', 'in:indoor,outdoor'],
-            'status' => ['nullable', 'string', 'in:available,occupied,reserved,maintenance'],
-            'guid_cabang' => ['nullable', 'string'],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
 
         $table->update($validated);
 

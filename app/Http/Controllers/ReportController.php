@@ -2,23 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Report\IndexReportExportRequest;
+use App\Http\Requests\Report\ReportFiltersRequest;
 use App\Jobs\ExportReportJob;
 use App\Models\ReportExport;
 use App\Services\Reports\ReportQueryFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ReportController extends Controller
 {
-    public function preview(Request $request, string $type, ReportQueryFactory $factory): JsonResponse
+    public function preview(ReportFiltersRequest $request, string $type, ReportQueryFactory $factory): JsonResponse
     {
-        $filters = $this->validatedFilters($request, $type);
+        $filters = $this->filtersFromRequest($request);
         $report = $factory->make($type);
         $pagination = $report->preview($filters);
 
@@ -34,17 +34,17 @@ class ReportController extends Controller
         ]);
     }
 
-    public function summary(Request $request, string $type, ReportQueryFactory $factory): JsonResponse
+    public function summary(ReportFiltersRequest $request, string $type, ReportQueryFactory $factory): JsonResponse
     {
-        $filters = $this->validatedFilters($request, $type);
+        $filters = $this->filtersFromRequest($request);
         $report = $factory->make($type);
 
         return $this->apiResponse('00', 'success', $report->summary($filters));
     }
 
-    public function export(Request $request, string $type): JsonResponse
+    public function export(ReportFiltersRequest $request, string $type): JsonResponse
     {
-        $filters = $this->validatedFilters($request, $type);
+        $filters = $this->filtersFromRequest($request);
         $format = in_array($request->input('format'), ['csv', 'xlsx']) ? $request->input('format') : 'csv';
 
         $export = ReportExport::query()->create([
@@ -72,13 +72,9 @@ class ReportController extends Controller
         return $this->apiResponse('00', 'success', $this->exportData($export));
     }
 
-    public function exportHistory(Request $request): JsonResponse
+    public function exportHistory(IndexReportExportRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'filter' => ['nullable', 'array'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'page' => ['nullable', 'integer', 'min:1'],
-        ]);
+        $validated = $request->validated();
 
         $filter = $validated['filter'] ?? [];
         $limit = max(1, min(100, (int) ($validated['limit'] ?? 10)));
@@ -120,19 +116,9 @@ class ReportController extends Controller
         return response()->download($path, $this->downloadFilename($export, $factory));
     }
 
-    private function validatedFilters(Request $request, string $type): array
+    private function filtersFromRequest(ReportFiltersRequest $request): array
     {
-        validator(['type' => $type], [
-            'type' => ['required', 'string', Rule::in(array_keys(ReportQueryFactory::TYPES))],
-        ])->validate();
-
-        $validated = $request->validate([
-            'filter' => ['nullable', 'array'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'order' => ['nullable', 'string', 'max:60'],
-            'sort' => ['nullable', 'string', 'in:ASC,DESC,asc,desc'],
-        ]);
+        $validated = $request->validated();
 
         return [
             ...($validated['filter'] ?? []),

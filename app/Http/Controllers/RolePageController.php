@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Web\Role\StoreRoleRequest;
+use App\Http\Requests\Web\Role\UpdateRoleRequest;
 use App\Models\AuthenticationRole;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -34,12 +34,9 @@ class RolePageController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreRoleRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100', Rule::unique(AuthenticationRole::class, 'name')],
-            'is_default' => ['nullable', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         AuthenticationRole::query()->create([
             'guid' => (string) Str::uuid(),
@@ -50,14 +47,10 @@ class RolePageController extends Controller
         return redirect()->route('roles.index')->with('success', 'Role berhasil dibuat.');
     }
 
-    public function update(Request $request, string $guid): RedirectResponse
+    public function update(UpdateRoleRequest $request, string $guid): RedirectResponse
     {
         $role = AuthenticationRole::query()->where('guid', $guid)->firstOrFail();
-
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100', Rule::unique(AuthenticationRole::class, 'name')->ignore($role->id)],
-            'is_default' => ['nullable', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         $role->update($validated);
 

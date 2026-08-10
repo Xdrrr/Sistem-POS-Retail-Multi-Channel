@@ -2,27 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Role\IndexRoleRequest;
+use App\Http\Requests\Role\StoreRoleRequest;
+use App\Http\Requests\Role\UpdateRoleRequest;
 use App\Models\AuthenticationRole;
 use App\Traits\Filterable;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class RoleController extends Controller
 {
     use Filterable;
 
-    public function index(Request $request): JsonResponse
+    public function index(IndexRoleRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'order' => ['nullable', 'string', 'in:name,is_default,created_at,updated_at'],
-            'sort' => ['nullable', 'string', 'in:ASC,DESC'],
-        ]);
-
         $query = AuthenticationRole::query();
         $this->applyFilter($request, $query, ['guid', 'name', 'is_default']);
 
@@ -32,18 +25,9 @@ class RoleController extends Controller
         return $this->apiResponse('00', 'success', $roles);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreRoleRequest $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'name' => ['required', 'string', 'max:100', Rule::unique(AuthenticationRole::class, 'name')],
-            'is_default' => ['nullable', 'boolean'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
+        $validated = $request->validated();
 
         $role = AuthenticationRole::query()->create([
             'guid' => (string) Str::uuid(),
@@ -65,31 +49,14 @@ class RoleController extends Controller
         return $this->apiResponse('00', 'success', $this->roleData($role));
     }
 
-    public function update(Request $request): JsonResponse
+    public function update(UpdateRoleRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'guid' => ['required', 'string', Rule::exists(AuthenticationRole::class, 'guid')],
-            'name' => ['required', 'string', 'max:100'],
-            'is_default' => ['nullable', 'boolean'],
-        ]);
-
+        $validated = $request->validated();
         $role = AuthenticationRole::query()->where('guid', $validated['guid'])->first();
 
         if (! $role) {
             return $this->apiResponse('01', 'failed', null, 'Role not found.', 'Role tidak ditemukan.', 404);
         }
-
-        $validator = Validator::make($request->all(), [
-            'guid' => ['required', 'string'],
-            'name' => ['required', 'string', 'max:100', Rule::unique(AuthenticationRole::class, 'name')->ignore($role->id)],
-            'is_default' => ['nullable', 'boolean'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
 
         $role->update([
             'name' => $validated['name'],

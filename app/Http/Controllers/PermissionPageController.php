@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Web\Permission\UpdatePermissionRequest;
 use App\Models\AuthenticationRole;
 use App\Models\Permission;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -51,13 +51,9 @@ class PermissionPageController extends Controller
         ]);
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(UpdatePermissionRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'role_guid' => ['required', 'string'],
-            'permissions' => ['nullable', 'array'],
-            'permissions.*' => ['string'],
-        ]);
+        $validated = $request->validated();
 
         $role = AuthenticationRole::query()->where('guid', $validated['role_guid'])->firstOrFail();
         $permNames = $validated['permissions'] ?? [];

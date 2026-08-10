@@ -2,47 +2,27 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AuthenticationSession;
-use App\Models\AuthenticationUser;
+use App\Http\Requests\Shift\CloseShiftRequest;
+use App\Http\Requests\Shift\IndexShiftRequest;
+use App\Http\Requests\Shift\StoreShiftRequest;
 use App\Models\Shift;
 use App\Services\Shifts\ShiftService;
+use App\Traits\ResolvesAuthUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use RuntimeException;
 
 class ShiftApiController extends Controller
 {
+    use ResolvesAuthUser;
+
     public function __construct(private readonly ShiftService $shifts)
     {
     }
 
-    public function index(Request $request): JsonResponse
+    public function index(IndexShiftRequest $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'filter' => ['nullable', 'array'],
-            'filter.set_guid' => ['nullable', 'boolean'],
-            'filter.guid' => ['nullable', 'string'],
-            'filter.set_status' => ['nullable', 'boolean'],
-            'filter.status' => ['nullable', 'string', 'in:open,closed'],
-            'filter.set_user_guid' => ['nullable', 'boolean'],
-            'filter.user_guid' => ['nullable', 'string', Rule::exists(AuthenticationUser::class, 'guid')],
-            'filter.set_from_date' => ['nullable', 'boolean'],
-            'filter.from_date' => ['nullable', 'date'],
-            'filter.set_to_date' => ['nullable', 'boolean'],
-            'filter.to_date' => ['nullable', 'date'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'order' => ['nullable', 'string', 'in:shift_number,opened_at,closed_at,created_at'],
-            'sort' => ['nullable', 'string', 'in:ASC,DESC'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
+        $validated = $request->validated();
         $paginator = $this->shifts->list([
             ...($validated['filter'] ?? []),
             'limit' => $validated['limit'] ?? 20,
@@ -64,27 +44,16 @@ class ShiftApiController extends Controller
         ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreShiftRequest $request): JsonResponse
     {
-        $user = $this->authenticatedUser($request);
+        $user = $this->resolveAuthUser($request);
 
         if (! $user) {
             return $this->apiResponse('01', 'failed', null, 'User session not found.', 'Sesi user tidak ditemukan.', 401);
         }
 
-        $validator = Validator::make($request->all(), [
-            'opened_at' => ['required', 'date'],
-            'work_hours' => ['required', 'numeric', 'min:0.25', 'max:24'],
-            'opening_balance' => ['required', 'numeric', 'min:0'],
-            'notes' => ['nullable', 'string'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
         try {
-            $shift = $this->shifts->open($user, $validator->validated());
+            $shift = $this->shifts->open($user, $request->validated());
         } catch (RuntimeException $exception) {
             if ($exception->getMessage() === 'active_shift_exists') {
                 return $this->apiResponse('03', 'failed', null, 'You already have an active shift.', 'Anda masih memiliki shift aktif.', 409);
@@ -96,27 +65,15 @@ class ShiftApiController extends Controller
         return $this->apiResponse('00', 'success', $this->shifts->data($shift), 'Shift opened successfully.', 'Shift berhasil dibuka.', 201);
     }
 
-    public function close(Request $request): JsonResponse
+    public function close(CloseShiftRequest $request): JsonResponse
     {
-        $user = $this->authenticatedUser($request);
+        $user = $this->resolveAuthUser($request);
 
         if (! $user) {
             return $this->apiResponse('01', 'failed', null, 'User session not found.', 'Sesi user tidak ditemukan.', 401);
         }
 
-        $validator = Validator::make($request->all(), [
-            'guid' => ['required', 'string', Rule::exists(Shift::class, 'guid')],
-            'closed_at' => ['required', 'date'],
-            'work_hours' => ['required', 'numeric', 'min:0.25', 'max:24'],
-            'closing_balance' => ['required', 'numeric', 'min:0'],
-            'notes' => ['nullable', 'string'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
+        $validated = $request->validated();
         $shift = Shift::query()->where('guid', $validated['guid'])->firstOrFail();
 
         try {
@@ -134,7 +91,7 @@ class ShiftApiController extends Controller
 
     public function active(Request $request): JsonResponse
     {
-        $user = $this->authenticatedUser($request);
+        $user = $this->resolveAuthUser($request);
 
         if (! $user) {
             return $this->apiResponse('01', 'failed', null, 'User session not found.', 'Sesi user tidak ditemukan.', 401);
@@ -157,23 +114,5 @@ class ShiftApiController extends Controller
         }
 
         return $this->apiResponse('00', 'success', $this->shifts->data($shift, withOrders: true));
-    }
-
-    private function authenticatedUser(Request $request): ?AuthenticationUser
-    {
-        $apiToken = $request->attributes->get('api_token');
-
-        if (! $apiToken) {
-            return null;
-        }
-
-        $session = AuthenticationSession::query()
-            ->with(['user.role', 'user.detail'])
-            ->where('api_token_id', $apiToken->id)
-            ->latest('last_login_at')
-            ->latest('id')
-            ->first();
-
-        return $session?->user;
     }
 }

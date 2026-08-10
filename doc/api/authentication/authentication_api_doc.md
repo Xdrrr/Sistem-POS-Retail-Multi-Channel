@@ -25,8 +25,8 @@ token: <access_token>
 
 ```json
 {
-    "username": "xander@wit.id",
-    "password": "wit.id"
+    "username": "xander@gmail.com",
+    "password": "gmail.com"
 }
 ```
 
@@ -54,7 +54,7 @@ token: <access_token>
         "data": {
             "authentication_guid": "a0000000-0000-4000-8000-000000000001",
             "users_guid": "b0000000-0000-4000-8000-000000000001",
-            "username": "xander@wit.id",
+            "username": "xander@gmail.com",
             "role": {
                 "guid": "c0000000-0000-4000-8000-000000000001",
                 "name": "Superadmin"
@@ -65,7 +65,7 @@ token: <access_token>
             "last_login": "2026-06-04T12:00:00.000000Z",
             "detail_data": {
                 "phone_number": "02212",
-                "email": "xander@wit.id",
+                "email": "xander@gmail.com",
                 "full_name": "Xander",
                 "gender": "Laki-laki",
                 "address": "WIT",

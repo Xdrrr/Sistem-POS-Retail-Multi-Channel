@@ -2,36 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Inventory\AdjustInventoryRequest;
+use App\Http\Requests\Inventory\HistoryInventoryRequest;
 use App\Models\Cabang;
 use App\Models\InventoryHistory;
-use App\Models\Product;
 use App\Models\ProductInventory;
 use App\Services\Inventory\InsufficientStockException;
 use App\Services\Inventory\InventoryService;
+use App\Traits\ResolvesAuthUserGuid;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class InventoryAdjustmentController extends Controller
 {
-    public function adjust(Request $request): JsonResponse
+    use ResolvesAuthUserGuid;
+
+    public function adjust(AdjustInventoryRequest $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'inventory_guid' => ['required', 'string'],
-            'type' => ['required', 'string', 'in:in,out,adjustment'],
-            'qty' => ['required', 'numeric', 'min:0.01'],
-            'reference_type' => ['nullable', 'string', 'in:order,manual_adjustment'],
-            'reference_id' => ['nullable', 'string', 'uuid'],
-            'notes' => ['nullable', 'string', 'max:500'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
+        $validated = $request->validated();
 
         $inventory = ProductInventory::query()
             ->with('product')
@@ -100,27 +87,9 @@ class InventoryAdjustmentController extends Controller
         ], 'Stock adjusted successfully.', 'Stok berhasil disesuaikan.');
     }
 
-    public function history(Request $request): JsonResponse
+    public function history(HistoryInventoryRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'filter' => ['nullable', 'array'],
-            'filter.set_inventory_guid' => ['nullable', 'boolean'],
-            'filter.inventory_guid' => ['nullable', 'string'],
-            'filter.set_product_guid' => ['nullable', 'boolean'],
-            'filter.product_guid' => ['nullable', 'string'],
-            'filter.set_type' => ['nullable', 'boolean'],
-            'filter.type' => ['nullable', 'string', 'in:in,out,adjustment'],
-            'filter.set_reference_type' => ['nullable', 'boolean'],
-            'filter.reference_type' => ['nullable', 'string', 'in:order,manual_adjustment'],
-            'filter.set_from_date' => ['nullable', 'boolean'],
-            'filter.from_date' => ['nullable', 'date'],
-            'filter.set_to_date' => ['nullable', 'boolean'],
-            'filter.to_date' => ['nullable', 'date'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'order' => ['nullable', 'string', 'in:created_at,type,qty,stock_before,stock_after,reference_type'],
-            'sort' => ['nullable', 'string', 'in:ASC,DESC'],
-        ]);
+        $validated = $request->validated();
 
         $filter = $validated['filter'] ?? [];
         $limit = min((int) ($validated['limit'] ?? 20), 100);
@@ -224,19 +193,4 @@ class InventoryAdjustmentController extends Controller
         return $this->cabangMap[$guid] ?? $guid;
     }
 
-    private function authUserGuid(Request $request): ?string
-    {
-        $apiToken = $request->attributes->get('api_token');
-
-        if (! $apiToken) {
-            return null;
-        }
-
-        return \App\Models\AuthenticationSession::query()
-            ->with('user')
-            ->where('api_token_id', $apiToken->id)
-            ->latest('last_login_at')
-            ->latest('id')
-            ->first()?->user?->guid;
-    }
 }

@@ -478,3 +478,21 @@ All report exports now include `Cabang` (`cb.kode`) column added via left join t
 - Keep controller logic thin when adding larger modules; put business logic in services.
 - Use Query Builder/SQL aggregate for dashboards and summaries with potentially large data.
 - Keep dashboard UI consistent with existing Inertia pages and global responsive CSS.
+
+## Traits
+
+Shared logic sudah diekstrak ke traits. **Jangan buat private method baru untuk hal-hal berikut — gunakan trait yang sudah ada.**
+
+| Trait | Namespace | Digunakan oleh | Keterangan |
+|---|---|---|---|
+| `Filterable` | `App\Traits\Filterable` | `CabangController`, `CategoryController`, `ProductController`, `ProductGroupController`, `RoleController`, `PaymentController`, `OrderController` | `applyFilter()` — terapkan `set_*` filter + pagination + ordering ke Eloquent Builder |
+| `StoresCatalogImages` | `App\Traits\StoresCatalogImages` | `CategoryController`, `ProductController`, `ProductGroupController`, `CatalogPageController`, `OrderPageController` | `storeCatalogImage()`, `catalogImageUrl()`, `deleteCatalogImage()`, `imageRule()` |
+| `ResolvesAuthUserGuid` | `App\Traits\ResolvesAuthUserGuid` | `InventoryController`, `InventoryAdjustmentController`, `InventoryPageController`, `OrderPageController` | `authUserGuid(Request): ?string` — resolve GUID user dari API token atau web session |
+| `ResolvesAuthUser` | `App\Traits\ResolvesAuthUser` | `OrderController`, `ShiftApiController` | `resolveAuthUser(Request): ?AuthenticationUser` — resolve full model user dari API token (khusus API, tidak support web session) |
+| `HashesPasswords` | `App\Traits\HashesPasswords` | `AuthPageController`, `AuthenticationController`, `UserController`, `UserPageController`, `ProfilePageController` | `passwordHash(password, salt): string` dan `generateSalt(): string` — SHA-256 + base64 salt |
+
+### Kapan pakai trait mana:
+- Perlu GUID saja (untuk `created_by`, `user_guid_reff`) → `ResolvesAuthUserGuid`
+- Perlu full model user (untuk shift, role check) di API → `ResolvesAuthUser`
+- Hashing password user baru atau update → `HashesPasswords`
+- Generate salt baru → `HashesPasswords::generateSalt()`

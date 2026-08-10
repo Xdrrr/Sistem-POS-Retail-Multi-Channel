@@ -2,6 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Web\Catalog\StoreCategoryRequest;
+use App\Http\Requests\Web\Catalog\StoreGroupRequest;
+use App\Http\Requests\Web\Catalog\StoreProductRequest;
+use App\Http\Requests\Web\Catalog\UpdateCategoryRequest;
+use App\Http\Requests\Web\Catalog\UpdateGroupRequest;
+use App\Http\Requests\Web\Catalog\UpdateProductRequest;
 use App\Models\Cabang;
 use App\Models\Category;
 use App\Models\Product;
@@ -9,9 +15,7 @@ use App\Models\ProductGroup;
 use App\Models\ProductInventory;
 use App\Traits\StoresCatalogImages;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -41,14 +45,9 @@ class CatalogPageController extends Controller
         ]);
     }
 
-    public function storeCategory(Request $request): RedirectResponse
+    public function storeCategory(StoreCategoryRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100', Rule::unique(Category::class, 'name')],
-            'description' => ['nullable', 'string'],
-            'image' => $this->imageRule(),
-            'is_active' => ['boolean'],
-        ]);
+        $validated = $request->validated();
 
         Category::query()->create([
             'guid' => (string) Str::uuid(),
@@ -61,15 +60,10 @@ class CatalogPageController extends Controller
         return redirect()->route('catalog.index')->with('success', 'Kategori berhasil dibuat.');
     }
 
-    public function updateCategory(Request $request, string $guid): RedirectResponse
+    public function updateCategory(UpdateCategoryRequest $request, string $guid): RedirectResponse
     {
         $category = Category::query()->where('guid', $guid)->firstOrFail();
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100', Rule::unique(Category::class, 'name')->ignore($category->id)],
-            'description' => ['nullable', 'string'],
-            'image' => $this->imageRule(),
-            'is_active' => ['boolean'],
-        ]);
+        $validated = $request->validated();
 
         $category->update([
             'name' => $validated['name'],
@@ -93,14 +87,9 @@ class CatalogPageController extends Controller
         return redirect()->route('catalog.index')->with('success', 'Kategori berhasil dihapus.');
     }
 
-    public function storeGroup(Request $request): RedirectResponse
+    public function storeGroup(StoreGroupRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100', Rule::unique(ProductGroup::class, 'name')],
-            'description' => ['nullable', 'string'],
-            'image' => $this->imageRule(),
-            'is_active' => ['boolean'],
-        ]);
+        $validated = $request->validated();
 
         ProductGroup::query()->create([
             'guid' => (string) Str::uuid(),
@@ -113,15 +102,10 @@ class CatalogPageController extends Controller
         return redirect()->route('catalog.index')->with('success', 'Grup berhasil dibuat.');
     }
 
-    public function updateGroup(Request $request, string $guid): RedirectResponse
+    public function updateGroup(UpdateGroupRequest $request, string $guid): RedirectResponse
     {
         $group = ProductGroup::query()->where('guid', $guid)->firstOrFail();
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100', Rule::unique(ProductGroup::class, 'name')->ignore($group->id)],
-            'description' => ['nullable', 'string'],
-            'image' => $this->imageRule(),
-            'is_active' => ['boolean'],
-        ]);
+        $validated = $request->validated();
 
         $group->update([
             'name' => $validated['name'],
@@ -145,9 +129,9 @@ class CatalogPageController extends Controller
         return redirect()->route('catalog.index')->with('success', 'Grup berhasil dihapus.');
     }
 
-    public function storeProduct(Request $request): RedirectResponse
+    public function storeProduct(StoreProductRequest $request): RedirectResponse
     {
-        $validated = $request->validate($this->productRules());
+        $validated = $request->validated();
         $productGuid = (string) Str::uuid();
         $guidCabang = $validated['guid_cabang'] ?? 'aaaaaaaa-aaaa-4000-8000-000000000001';
 
@@ -176,10 +160,10 @@ class CatalogPageController extends Controller
         return redirect()->route('catalog.index')->with('success', 'Produk berhasil dibuat.');
     }
 
-    public function updateProduct(Request $request, string $guid): RedirectResponse
+    public function updateProduct(UpdateProductRequest $request, string $guid): RedirectResponse
     {
         $product = Product::query()->where('guid', $guid)->firstOrFail();
-        $validated = $request->validate($this->productRules($product));
+        $validated = $request->validated();
         $oldGuidCabang = $product->guid_cabang;
         $newGuidCabang = $validated['guid_cabang'] ?? $oldGuidCabang;
 
@@ -210,20 +194,6 @@ class CatalogPageController extends Controller
         $product->delete();
 
         return redirect()->route('catalog.index')->with('success', 'Produk berhasil dihapus.');
-    }
-
-    private function productRules(?Product $product = null): array
-    {
-        return [
-            'category_guid' => ['required', 'string', Rule::exists(Category::class, 'guid')],
-            'group_guid' => ['required', 'string', Rule::exists(ProductGroup::class, 'guid')],
-            'guid_cabang' => ['nullable', 'string'],
-            'name' => ['required', 'string', 'max:150', Rule::unique(Product::class, 'name')->ignore($product?->id)],
-            'description' => ['nullable', 'string'],
-            'image' => $this->imageRule(),
-            'price' => ['nullable', 'numeric', 'min:0'],
-            'is_active' => ['boolean'],
-        ];
     }
 
     private function categoryData(Category $category): array

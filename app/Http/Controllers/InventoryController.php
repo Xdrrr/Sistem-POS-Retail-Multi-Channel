@@ -2,39 +2,23 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AuthenticationSession;
+use App\Http\Requests\Inventory\IndexInventoryRequest;
+use App\Http\Requests\Inventory\StoreInventoryRequest;
+use App\Http\Requests\Inventory\UpdateInventoryRequest;
 use App\Models\Product;
 use App\Models\ProductInventory;
 use App\Services\Inventory\InventoryService;
+use App\Traits\ResolvesAuthUserGuid;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 
 class InventoryController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    use ResolvesAuthUserGuid;
+
+    public function index(IndexInventoryRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'filter' => ['nullable', 'array'],
-            'filter.set_guid' => ['nullable', 'boolean'],
-            'filter.guid' => ['nullable', 'string'],
-            'filter.set_product_guid' => ['nullable', 'boolean'],
-            'filter.product_guid' => ['nullable', 'string'],
-            'filter.set_guid_cabang' => ['nullable', 'boolean'],
-            'filter.guid_cabang' => ['nullable', 'string', 'max:50'],
-            'filter.set_unit' => ['nullable', 'boolean'],
-            'filter.unit' => ['nullable', 'string', 'max:20'],
-            'filter.set_is_active' => ['nullable', 'boolean'],
-            'filter.is_active' => ['nullable', 'boolean'],
-            'filter.set_low_stock' => ['nullable', 'boolean'],
-            'filter.low_stock' => ['nullable', 'boolean'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'order' => ['nullable', 'string', 'in:product_name,guid_cabang,unit,current_stock,minimum_stock,is_active,created_at,updated_at'],
-            'sort' => ['nullable', 'string', 'in:ASC,DESC'],
-        ]);
+        $validated = $request->validated();
 
         $filter = $validated['filter'] ?? [];
         $limit = $validated['limit'] ?? 20;
@@ -76,22 +60,9 @@ class InventoryController extends Controller
         return $this->apiResponse('00', 'success', $inventories);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreInventoryRequest $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'product_guid' => ['required', 'string', Rule::exists(Product::class, 'guid')],
-            'guid_cabang' => ['nullable', 'string', 'max:50'],
-            'unit' => ['nullable', 'string', 'max:20'],
-            'current_stock' => ['nullable', 'numeric', 'min:0'],
-            'minimum_stock' => ['nullable', 'numeric', 'min:0'],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
+        $validated = $request->validated();
         $guidCabang = $validated['guid_cabang'] ?? 'aaaaaaaa-aaaa-4000-8000-000000000001';
         $initialStock = (float) ($validated['current_stock'] ?? 0);
 
@@ -142,32 +113,15 @@ class InventoryController extends Controller
         return $this->apiResponse('00', 'success', $this->inventoryData($inventory));
     }
 
-    public function update(Request $request): JsonResponse
+    public function update(UpdateInventoryRequest $request): JsonResponse
     {
-        $request->validate([
-            'guid' => ['required', 'string', Rule::exists(ProductInventory::class, 'guid')],
-        ]);
-
-        $inventory = $this->findInventory($request->string('guid')->toString());
+        $validated = $request->validated();
+        $inventory = $this->findInventory($validated['guid']);
 
         if (! $inventory) {
             return $this->apiResponse('01', 'failed', null, 'Inventory not found.', 'Inventory tidak ditemukan.', 404);
         }
 
-        $validator = Validator::make($request->all(), [
-            'guid' => ['required', 'string', Rule::exists(ProductInventory::class, 'guid')],
-            'product_guid' => ['required', 'string', Rule::exists(Product::class, 'guid')],
-            'guid_cabang' => ['nullable', 'string', 'max:50'],
-            'unit' => ['nullable', 'string', 'max:20'],
-            'minimum_stock' => ['nullable', 'numeric', 'min:0'],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
         $guidCabang = $validated['guid_cabang'] ?? 'aaaaaaaa-aaaa-4000-8000-000000000001';
 
         $duplicate = ProductInventory::query()
@@ -218,22 +172,6 @@ class InventoryController extends Controller
         }
 
         return $this->apiResponse('00', 'success', $this->inventoryData($inventory->refresh()->load(['product.category', 'product.group'])), 'Inventory updated successfully.', 'Inventory berhasil diperbarui.');
-    }
-
-    private function authUserGuid(Request $request): ?string
-    {
-        $apiToken = $request->attributes->get('api_token');
-
-        if (! $apiToken) {
-            return null;
-        }
-
-        return AuthenticationSession::query()
-            ->with('user')
-            ->where('api_token_id', $apiToken->id)
-            ->latest('last_login_at')
-            ->latest('id')
-            ->first()?->user?->guid;
     }
 
     public function destroy(string $guid): JsonResponse

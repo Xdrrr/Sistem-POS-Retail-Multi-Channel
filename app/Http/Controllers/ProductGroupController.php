@@ -2,29 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ProductGroup\IndexProductGroupRequest;
+use App\Http\Requests\ProductGroup\StoreProductGroupRequest;
+use App\Http\Requests\ProductGroup\UpdateProductGroupRequest;
 use App\Models\ProductGroup;
 use App\Traits\Filterable;
 use App\Traits\StoresCatalogImages;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 
 class ProductGroupController extends Controller
 {
     use Filterable;
     use StoresCatalogImages;
 
-    public function index(Request $request): JsonResponse
+    public function index(IndexProductGroupRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'order' => ['nullable', 'string', 'in:name,description,is_active,created_at,updated_at'],
-            'sort' => ['nullable', 'string', 'in:ASC,DESC'],
-        ]);
-
         $query = ProductGroup::query();
         $this->applyFilter($request, $query, ['guid']);
 
@@ -34,20 +27,9 @@ class ProductGroupController extends Controller
         return $this->apiResponse('00', 'success', $groups);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreProductGroupRequest $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'name' => ['required', 'string', 'max:100', Rule::unique(ProductGroup::class, 'name')],
-            'description' => ['nullable', 'string'],
-            'image' => $this->imageRule(),
-            'is_active' => ['nullable', 'boolean'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
+        $validated = $request->validated();
         $group = ProductGroup::query()->create([
             'guid' => (string) Str::uuid(),
             'name' => $validated['name'],
@@ -70,34 +52,15 @@ class ProductGroupController extends Controller
         return $this->apiResponse('00', 'success', $this->groupData($group));
     }
 
-    public function update(Request $request): JsonResponse
+    public function update(UpdateProductGroupRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'guid' => ['required', 'string', Rule::exists(ProductGroup::class, 'guid')],
-            'name' => ['required', 'string', 'max:100'],
-            'description' => ['nullable', 'string'],
-            'image' => $this->imageRule(),
-            'is_active' => ['nullable', 'boolean'],
-        ]);
-
+        $validated = $request->validated();
         $group = $this->findGroup($validated['guid']);
 
         if (! $group) {
             return $this->apiResponse('01', 'failed', null, 'Group not found.', 'Group tidak ditemukan.', 404);
         }
 
-        $validator = Validator::make($request->all(), [
-            'name' => ['required', 'string', 'max:100', Rule::unique(ProductGroup::class, 'name')->ignore($group->id)],
-            'description' => ['nullable', 'string'],
-            'image' => $this->imageRule(),
-            'is_active' => ['nullable', 'boolean'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
         $group->update([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,

@@ -2,29 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Payment\IndexPaymentRequest;
+use App\Http\Requests\Payment\StorePaymentRequest;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Traits\Filterable;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class PaymentController extends Controller
 {
     use Filterable;
 
-    public function index(Request $request): JsonResponse
+    public function index(IndexPaymentRequest $request): JsonResponse
     {
-        $request->validate([
-            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'order' => ['nullable', 'string', 'in:payment_number,method,status,amount,paid_at,created_at,updated_at'],
-            'sort' => ['nullable', 'string', 'in:ASC,DESC'],
-        ]);
-
         $query = Payment::query()->with('order');
         $this->applyFilter($request, $query, ['guid', 'payment_number', 'method', 'status']);
 
@@ -34,23 +26,9 @@ class PaymentController extends Controller
         return $this->apiResponse('00', 'success', $payments);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StorePaymentRequest $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'order_guid' => ['required', 'string', Rule::exists(Order::class, 'guid')],
-            'method' => ['required', 'string', 'in:cash,debit_card,credit_card,qris,transfer,e_wallet'],
-            'status' => ['nullable', 'string', 'in:pending,paid,failed,refunded'],
-            'amount' => ['required', 'numeric', 'min:0.01'],
-            'paid_at' => ['nullable', 'date'],
-            'reference_number' => ['nullable', 'string', 'max:100'],
-            'notes' => ['nullable', 'string'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
+        $validated = $request->validated();
 
         $payment = DB::transaction(function () use ($validated): Payment {
             $order = Order::query()->where('guid', $validated['order_guid'])->firstOrFail();

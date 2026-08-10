@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Web\Reservation\StoreReservationRequest;
+use App\Http\Requests\Web\Reservation\UpdateReservationRequest;
 use App\Models\Cabang;
 use App\Models\Order;
 use App\Models\RestaurantTable;
 use App\Models\TableReservation;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -75,21 +75,9 @@ class TableReservationPageController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreReservationRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'table_number' => ['required', 'string', 'max:30'],
-            'customer_name' => ['required', 'string', 'max:150'],
-            'customer_phone' => ['nullable', 'string', 'max:30'],
-            'guest_count' => ['nullable', 'integer', 'min:1'],
-            'reservation_date' => ['required', 'date'],
-            'reservation_time' => ['required', 'string'],
-            'end_time' => ['nullable', 'string'],
-            'type' => ['nullable', 'string', 'in:booking,walkin'],
-            'notes' => ['nullable', 'string', 'max:500'],
-            'status' => ['nullable', 'string', 'in:occupied,pending,confirmed,seated,completed,cancelled'],
-            'guid_cabang' => ['nullable', 'string'],
-        ]);
+        $validated = $request->validated();
 
         $table = RestaurantTable::query()->where('table_number', $validated['table_number'])->first();
 
@@ -113,21 +101,10 @@ class TableReservationPageController extends Controller
         return redirect()->route('reservations.index')->with('success', 'Reservasi berhasil dibuat.');
     }
 
-    public function update(Request $request, string $guid): RedirectResponse
+    public function update(UpdateReservationRequest $request, string $guid): RedirectResponse
     {
         $reservation = TableReservation::query()->where('guid', $guid)->firstOrFail();
-        $validated = $request->validate([
-            'table_number' => ['required', 'string', 'max:30'],
-            'customer_name' => ['required', 'string', 'max:150'],
-            'customer_phone' => ['nullable', 'string', 'max:30'],
-            'guest_count' => ['nullable', 'integer', 'min:1'],
-            'reservation_date' => ['required', 'date'],
-            'reservation_time' => ['required', 'string'],
-            'end_time' => ['nullable', 'string'],
-            'type' => ['nullable', 'string', 'in:booking,walkin'],
-            'notes' => ['nullable', 'string', 'max:500'],
-            'status' => ['nullable', 'string', 'in:occupied,pending,confirmed,seated,completed,cancelled'],
-        ]);
+        $validated = $request->validated();
 
         $table = RestaurantTable::query()->where('table_number', $validated['table_number'])->first();
         $reservation->update(array_merge($validated, ['table_guid' => $table?->guid]));

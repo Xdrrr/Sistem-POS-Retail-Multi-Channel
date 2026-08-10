@@ -2,18 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Web\Auth\LoginRequest;
+use App\Http\Requests\Web\Auth\RegisterRequest;
 use App\Models\AuthenticationRole;
 use App\Models\AuthenticationUser;
+use App\Traits\HashesPasswords;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class AuthPageController extends Controller
 {
+    use HashesPasswords;
     public function login(): Response
     {
         return Inertia::render('Auth/Login', [
@@ -28,13 +31,9 @@ class AuthPageController extends Controller
         ]);
     }
 
-    public function authenticate(Request $request): RedirectResponse
+    public function authenticate(LoginRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'username' => ['required', 'email', 'max:255'],
-            'password' => ['required', 'string'],
-            'remember' => ['boolean'],
-        ]);
+        $validated = $request->validated();
 
         $user = AuthenticationUser::query()
             ->with(['role', 'detail'])
@@ -54,15 +53,9 @@ class AuthPageController extends Controller
         return redirect()->route('dashboard')->with('success', 'Login berhasil.');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(RegisterRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'fullname' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique(AuthenticationUser::class, 'username')],
-            'phone_number' => ['nullable', 'string', 'max:50'],
-            'password' => ['required', 'string', 'min:6'],
-            'confirm_password' => ['required', 'same:password'],
-        ]);
+        $validated = $request->validated();
 
         $role = AuthenticationRole::query()->where('name', 'Users')->first()
             ?? AuthenticationRole::query()->where('is_default', true)->first()
@@ -118,10 +111,5 @@ class AuthPageController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('login');
-    }
-
-    private function passwordHash(string $password, string $salt): string
-    {
-        return base64_encode(hash('sha256', $password.$salt, true));
     }
 }

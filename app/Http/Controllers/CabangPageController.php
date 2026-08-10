@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Web\Cabang\StoreCabangRequest;
+use App\Http\Requests\Web\Cabang\UpdateCabangRequest;
 use App\Models\Cabang;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -34,14 +34,9 @@ class CabangPageController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreCabangRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'kode' => ['required', 'string', 'max:50', Rule::unique(Cabang::class, 'kode')],
-            'nama' => ['required', 'string', 'max:100'],
-            'alamat' => ['nullable', 'string'],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         Cabang::query()->create([
             'guid' => (string) Str::uuid(),
@@ -54,16 +49,10 @@ class CabangPageController extends Controller
         return redirect()->route('cabang.index')->with('success', 'Cabang berhasil dibuat.');
     }
 
-    public function update(Request $request, string $guid): RedirectResponse
+    public function update(UpdateCabangRequest $request, string $guid): RedirectResponse
     {
         $cabang = Cabang::query()->where('guid', $guid)->firstOrFail();
-
-        $validated = $request->validate([
-            'kode' => ['required', 'string', 'max:50', Rule::unique(Cabang::class, 'kode')->ignore($cabang->id)],
-            'nama' => ['required', 'string', 'max:100'],
-            'alamat' => ['nullable', 'string'],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         $cabang->update($validated);
 

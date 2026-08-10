@@ -2,27 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Cabang\IndexCabangRequest;
+use App\Http\Requests\Cabang\StoreCabangRequest;
+use App\Http\Requests\Cabang\UpdateCabangRequest;
 use App\Models\Cabang;
 use App\Traits\Filterable;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 
 class CabangController extends Controller
 {
     use Filterable;
 
-    public function index(Request $request): JsonResponse
+    public function index(IndexCabangRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'order' => ['nullable', 'string', 'in:kode,nama,is_active,created_at,updated_at'],
-            'sort' => ['nullable', 'string', 'in:ASC,DESC'],
-        ]);
-
         $query = Cabang::query();
         $this->applyFilter($request, $query, ['guid', 'kode', 'is_active']);
 
@@ -32,20 +25,9 @@ class CabangController extends Controller
         return $this->apiResponse('00', 'success', $cabangs);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreCabangRequest $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'kode' => ['required', 'string', 'max:50', Rule::unique(Cabang::class, 'kode')],
-            'nama' => ['required', 'string', 'max:100'],
-            'alamat' => ['nullable', 'string'],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
+        $validated = $request->validated();
 
         $cabang = Cabang::query()->create([
             'guid' => (string) Str::uuid(),
@@ -69,34 +51,14 @@ class CabangController extends Controller
         return $this->apiResponse('00', 'success', $this->cabangData($cabang));
     }
 
-    public function update(Request $request): JsonResponse
+    public function update(UpdateCabangRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'guid' => ['required', 'string', Rule::exists(Cabang::class, 'guid')],
-            'kode' => ['required', 'string', 'max:50'],
-            'nama' => ['required', 'string', 'max:100'],
-            'alamat' => ['nullable', 'string'],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
-
+        $validated = $request->validated();
         $cabang = $this->findCabang($validated['guid']);
 
         if (! $cabang) {
             return $this->apiResponse('01', 'failed', null, 'Branch not found.', 'Cabang tidak ditemukan.', 404);
         }
-
-        $validator = Validator::make($request->all(), [
-            'kode' => ['required', 'string', 'max:50', Rule::unique(Cabang::class, 'kode')->ignore($cabang->id)],
-            'nama' => ['required', 'string', 'max:100'],
-            'alamat' => ['nullable', 'string'],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
 
         $cabang->update([
             'kode' => $validated['kode'],

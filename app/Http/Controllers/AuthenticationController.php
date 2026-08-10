@@ -2,20 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\ApiToken;
 use App\Models\AuthenticationRole;
 use App\Models\AuthenticationSession;
 use App\Models\AuthenticationUser;
+use App\Traits\HashesPasswords;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class AuthenticationController extends Controller
 {
-    public function login(Request $request): JsonResponse
+    use HashesPasswords;
+    public function login(LoginRequest $request): JsonResponse
     {
         $apiToken = $this->apiTokenFromRequest($request);
 
@@ -23,16 +25,7 @@ class AuthenticationController extends Controller
             return $this->apiResponse('01', 'failed', null, 'Invalid or expired token.', 'Token tidak valid atau sudah kedaluwarsa.', 401);
         }
 
-        $validator = Validator::make($request->all(), [
-            'username' => ['required', 'email', 'max:255'],
-            'password' => ['required', 'string'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
+        $validated = $request->validated();
         $user = AuthenticationUser::query()
             ->with(['role', 'detail'])
             ->where('username', $validated['username'])
@@ -59,7 +52,7 @@ class AuthenticationController extends Controller
         return $this->apiResponse('00', 'success', $this->userResponseData($user->refresh()->load(['role', 'detail']), $session));
     }
 
-    public function register(Request $request): JsonResponse
+    public function register(RegisterRequest $request): JsonResponse
     {
         $apiToken = $this->apiTokenFromRequest($request);
 
@@ -67,24 +60,7 @@ class AuthenticationController extends Controller
             return $this->apiResponse('01', 'failed', null, 'Invalid or expired token.', 'Token tidak valid atau sudah kedaluwarsa.', 401);
         }
 
-        $validator = Validator::make($request->all(), [
-            'fullname' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255'],
-            'gender' => ['required', Rule::in(['Laki-laki', 'Perempuan', 'Tidak-Spesifik'])],
-            'birth_date' => ['nullable', 'date_format:Y-m-d'],
-            'phone_number' => ['nullable', 'string', 'max:50'],
-            'password' => ['required', 'string', 'min:6'],
-            'confirm_password' => ['required', 'same:password'],
-            'additional_address' => ['nullable'],
-            'city' => ['nullable', 'string', 'max:255'],
-            'province' => ['nullable', 'string', 'max:255'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
+        $validated = $request->validated();
 
         if (AuthenticationUser::query()->where('username', $validated['email'])->exists()) {
             return $this->apiResponse('02', 'failed', null, 'Email already registered.', 'Email sudah terdaftar.', 409);
@@ -195,32 +171,5 @@ class AuthenticationController extends Controller
         }
 
         return $data;
-    }
-
-    protected function apiResponse(
-        string $code,
-        string $status,
-        mixed $data = null,
-        string $messageEn = 'Success',
-        string $messageId = 'Sukses',
-        int $httpStatus = 200,
-    ): JsonResponse {
-        return response()->json([
-            'app_name' => config('app.name'),
-            'version' => config('app.version'),
-            'build' => '1',
-            'response' => [
-                'code' => $code,
-                'status' => $status,
-                'data' => $data,
-                'message_en' => $messageEn,
-                'message_id' => $messageId,
-            ],
-        ], $httpStatus);
-    }
-
-    private function passwordHash(string $password, string $salt): string
-    {
-        return base64_encode(hash('sha256', $password.$salt, true));
     }
 }

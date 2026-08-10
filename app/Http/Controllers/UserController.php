@@ -2,36 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\User\IndexUserRequest;
+use App\Http\Requests\User\StoreUserRequest;
+use App\Http\Requests\User\UpdateUserRequest;
 use App\Models\AuthenticationRole;
 use App\Models\AuthenticationUser;
 use App\Models\AuthenticationUserDetail;
+use App\Traits\HashesPasswords;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    use HashesPasswords;
+    public function index(IndexUserRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'filter' => ['nullable', 'array'],
-            'filter.set_guid' => ['nullable', 'boolean'],
-            'filter.guid' => ['nullable', 'string'],
-            'filter.set_role_name' => ['nullable', 'boolean'],
-            'filter.role_name' => ['nullable', 'string'],
-            'filter.set_guid_cabang' => ['nullable', 'boolean'],
-            'filter.guid_cabang' => ['nullable', 'string'],
-            'filter.set_is_active' => ['nullable', 'boolean'],
-            'filter.is_active' => ['nullable', 'boolean'],
-            'search' => ['nullable', 'string', 'max:100'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'order' => ['nullable', 'string', 'in:username,full_name,email,role_name,created_at'],
-            'sort' => ['nullable', 'string', 'in:ASC,DESC'],
-        ]);
+        $validated = $request->validated();
 
         $filter = $validated['filter'] ?? [];
         $search = $validated['search'] ?? '';
@@ -97,29 +84,9 @@ class UserController extends Controller
         ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreUserRequest $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'username' => ['required', 'email', 'max:255', Rule::unique(AuthenticationUser::class, 'username')],
-            'password' => ['required', 'string', 'min:6'],
-            'confirm_password' => ['required', 'same:password'],
-            'role_guid' => ['required', 'string', Rule::exists(AuthenticationRole::class, 'guid')],
-            'guid_cabang' => ['nullable', 'string', Rule::exists(\App\Models\Cabang::class, 'guid')],
-            'full_name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'phone_number' => ['nullable', 'string', 'max:50'],
-            'gender' => ['nullable', 'string', 'max:30'],
-            'address' => ['nullable', 'string'],
-            'city' => ['nullable', 'string', 'max:255'],
-            'province' => ['nullable', 'string', 'max:255'],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
+        $validated = $request->validated();
         $role = AuthenticationRole::query()->where('guid', $validated['role_guid'])->first();
 
         $user = DB::transaction(function () use ($validated, $role): AuthenticationUser {
@@ -170,53 +137,15 @@ class UserController extends Controller
         return $this->apiResponse('00', 'success', $this->userData($user));
     }
 
-    public function update(Request $request): JsonResponse
+    public function update(UpdateUserRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'guid' => ['required', 'string', Rule::exists(AuthenticationUser::class, 'guid')],
-            'username' => ['required', 'email', 'max:255'],
-            'role_guid' => ['required', 'string', Rule::exists(AuthenticationRole::class, 'guid')],
-            'guid_cabang' => ['nullable', 'string', Rule::exists(\App\Models\Cabang::class, 'guid')],
-            'full_name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'phone_number' => ['nullable', 'string', 'max:50'],
-            'gender' => ['nullable', 'string', 'max:30'],
-            'address' => ['nullable', 'string'],
-            'city' => ['nullable', 'string', 'max:255'],
-            'province' => ['nullable', 'string', 'max:255'],
-            'is_active' => ['nullable', 'boolean'],
-            'password' => ['nullable', 'string', 'min:6'],
-            'confirm_password' => ['nullable', 'same:password'],
-        ]);
-
+        $validated = $request->validated();
         $user = AuthenticationUser::query()->where('guid', $validated['guid'])->first();
 
         if (! $user) {
             return $this->apiResponse('01', 'failed', null, 'User not found.', 'User tidak ditemukan.', 404);
         }
 
-        $validator = Validator::make($request->all(), [
-            'guid' => ['required', 'string'],
-            'username' => ['required', 'email', 'max:255', Rule::unique(AuthenticationUser::class, 'username')->ignore($user->id)],
-            'role_guid' => ['required', 'string', Rule::exists(AuthenticationRole::class, 'guid')],
-            'guid_cabang' => ['nullable', 'string', Rule::exists(\App\Models\Cabang::class, 'guid')],
-            'full_name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'phone_number' => ['nullable', 'string', 'max:50'],
-            'gender' => ['nullable', 'string', 'max:30'],
-            'address' => ['nullable', 'string'],
-            'city' => ['nullable', 'string', 'max:255'],
-            'province' => ['nullable', 'string', 'max:255'],
-            'is_active' => ['nullable', 'boolean'],
-            'password' => ['nullable', 'string', 'min:6'],
-            'confirm_password' => ['nullable', 'same:password'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
         $role = AuthenticationRole::query()->where('guid', $validated['role_guid'])->first();
 
         DB::transaction(function () use ($user, $validated, $role): void {
@@ -289,10 +218,5 @@ class UserController extends Controller
             'created_at' => $user->created_at?->toISOString(),
             'updated_at' => $user->updated_at?->toISOString(),
         ];
-    }
-
-    private function passwordHash(string $password, string $salt): string
-    {
-        return base64_encode(hash('sha256', $password.$salt, true));
     }
 }

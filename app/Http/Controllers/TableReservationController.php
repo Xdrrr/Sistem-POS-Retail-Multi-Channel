@@ -2,36 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\RestaurantTable;
+use App\Http\Requests\Reservation\IndexReservationRequest;
+use App\Http\Requests\Reservation\StoreReservationRequest;
+use App\Http\Requests\Reservation\UpdateReservationRequest;
 use App\Models\TableReservation;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class TableReservationController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(IndexReservationRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'filter' => ['nullable', 'array'],
-            'filter.set_guid' => ['nullable', 'boolean'],
-            'filter.guid' => ['nullable', 'string'],
-            'filter.set_table_number' => ['nullable', 'boolean'],
-            'filter.table_number' => ['nullable', 'string', 'max:30'],
-            'filter.set_status' => ['nullable', 'boolean'],
-            'filter.status' => ['nullable', 'string', 'in:occupied,pending,confirmed,seated,completed,cancelled'],
-            'filter.set_reservation_date' => ['nullable', 'boolean'],
-            'filter.reservation_date' => ['nullable', 'date'],
-            'filter.set_guid_cabang' => ['nullable', 'boolean'],
-            'filter.guid_cabang' => ['nullable', 'string'],
-            'filter.set_is_active' => ['nullable', 'boolean'],
-            'filter.is_active' => ['nullable', 'boolean'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'order' => ['nullable', 'string', 'in:table_number,customer_name,reservation_date,reservation_time,status,guest_count,created_at'],
-            'sort' => ['nullable', 'string', 'in:ASC,DESC'],
-        ]);
+        $validated = $request->validated();
 
         $filter = $validated['filter'] ?? [];
         $limit = min((int) ($validated['limit'] ?? 20), 100);
@@ -70,22 +52,9 @@ class TableReservationController extends Controller
         return $this->apiResponse('00', 'success', $items);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreReservationRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'table_guid' => ['nullable', 'string', Rule::exists(RestaurantTable::class, 'guid')],
-            'table_number' => ['required', 'string', 'max:30'],
-            'customer_name' => ['required', 'string', 'max:150'],
-            'customer_phone' => ['nullable', 'string', 'max:30'],
-            'guest_count' => ['nullable', 'integer', 'min:1'],
-            'reservation_date' => ['required', 'date'],
-            'reservation_time' => ['required', 'string'],
-            'end_time' => ['nullable', 'string'],
-            'type' => ['nullable', 'string', 'in:booking,walkin'],
-            'notes' => ['nullable', 'string', 'max:500'],
-            'status' => ['nullable', 'string', 'in:occupied,pending,confirmed,seated,completed,cancelled'],
-            'guid_cabang' => ['nullable', 'string'],
-        ]);
+        $validated = $request->validated();
 
         $tableGuid = $validated['table_guid'] ?? null;
 
@@ -125,34 +94,14 @@ class TableReservationController extends Controller
         return $this->apiResponse('00', 'success', $this->reservationData($reservation));
     }
 
-    public function update(Request $request): JsonResponse
+    public function update(UpdateReservationRequest $request): JsonResponse
     {
-        $request->validate([
-            'guid' => ['required', 'string', Rule::exists(TableReservation::class, 'guid')],
-        ]);
-
-        $reservation = TableReservation::query()->where('guid', $request->string('guid')->toString())->first();
+        $validated = $request->validated();
+        $reservation = TableReservation::query()->where('guid', $validated['guid'])->first();
 
         if (! $reservation) {
             return $this->apiResponse('01', 'failed', null, 'Reservation not found.', 'Reservasi tidak ditemukan.', 404);
         }
-
-        $validated = $request->validate([
-            'guid' => ['required', 'string'],
-            'table_guid' => ['nullable', 'string', Rule::exists(RestaurantTable::class, 'guid')],
-            'table_number' => ['nullable', 'string', 'max:30'],
-            'customer_name' => ['nullable', 'string', 'max:150'],
-            'customer_phone' => ['nullable', 'string', 'max:30'],
-            'guest_count' => ['nullable', 'integer', 'min:1'],
-            'reservation_date' => ['nullable', 'date'],
-            'reservation_time' => ['nullable', 'string'],
-            'end_time' => ['nullable', 'string'],
-            'type' => ['nullable', 'string', 'in:booking,walkin'],
-            'notes' => ['nullable', 'string', 'max:500'],
-            'status' => ['nullable', 'string', 'in:occupied,pending,confirmed,seated,completed,cancelled'],
-            'guid_cabang' => ['nullable', 'string'],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
 
         $reservation->update($validated);
 

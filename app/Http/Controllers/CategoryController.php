@@ -2,29 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Category\IndexCategoryRequest;
+use App\Http\Requests\Category\StoreCategoryRequest;
+use App\Http\Requests\Category\UpdateCategoryRequest;
 use App\Models\Category;
 use App\Traits\Filterable;
 use App\Traits\StoresCatalogImages;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 
 class CategoryController extends Controller
 {
     use Filterable;
     use StoresCatalogImages;
 
-    public function index(Request $request): JsonResponse
+    public function index(IndexCategoryRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'order' => ['nullable', 'string', 'in:name,description,is_active,created_at,updated_at'],
-            'sort' => ['nullable', 'string', 'in:ASC,DESC'],
-        ]);
-
         $query = Category::query();
         $this->applyFilter($request, $query, ['guid']);
 
@@ -34,20 +27,9 @@ class CategoryController extends Controller
         return $this->apiResponse('00', 'success', $categories);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreCategoryRequest $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'name' => ['required', 'string', 'max:100', Rule::unique(Category::class, 'name')],
-            'description' => ['nullable', 'string'],
-            'image' => $this->imageRule(),
-            'is_active' => ['nullable', 'boolean'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
+        $validated = $request->validated();
         $category = Category::query()->create([
             'guid' => (string) Str::uuid(),
             'name' => $validated['name'],
@@ -70,34 +52,15 @@ class CategoryController extends Controller
         return $this->apiResponse('00', 'success', $this->categoryData($category));
     }
 
-    public function update(Request $request): JsonResponse
+    public function update(UpdateCategoryRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'guid' => ['required', 'string', Rule::exists(Category::class, 'guid')],
-            'name' => ['required', 'string', 'max:100'],
-            'description' => ['nullable', 'string'],
-            'image' => $this->imageRule(),
-            'is_active' => ['nullable', 'boolean'],
-        ]);
-
+        $validated = $request->validated();
         $category = $this->findCategory($validated['guid']);
 
         if (! $category) {
             return $this->apiResponse('01', 'failed', null, 'Category not found.', 'Kategori tidak ditemukan.', 404);
         }
 
-        $validator = Validator::make($request->all(), [
-            'name' => ['required', 'string', 'max:100', Rule::unique(Category::class, 'name')->ignore($category->id)],
-            'description' => ['nullable', 'string'],
-            'image' => $this->imageRule(),
-            'is_active' => ['nullable', 'boolean'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
         $category->update([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,

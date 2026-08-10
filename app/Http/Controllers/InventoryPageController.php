@@ -2,21 +2,25 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AuthenticationUser;
+use App\Http\Requests\Web\Inventory\AdjustInventoryRequest;
+use App\Http\Requests\Web\Inventory\StoreInventoryRequest;
+use App\Http\Requests\Web\Inventory\UpdateInventoryRequest;
 use App\Models\Cabang;
 use App\Models\InventoryHistory;
 use App\Models\Product;
 use App\Models\ProductInventory;
 use App\Services\Inventory\InventoryService;
+use App\Traits\ResolvesAuthUserGuid;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class InventoryPageController extends Controller
 {
+    use ResolvesAuthUserGuid;
+
     public function index(): Response
     {
         $inventories = ProductInventory::query()
@@ -48,9 +52,9 @@ class InventoryPageController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreInventoryRequest $request): RedirectResponse
     {
-        $validated = $request->validate($this->rules());
+        $validated = $request->validated();
         $guidCabang = $validated['guid_cabang'] ?? 'aaaaaaaa-aaaa-4000-8000-000000000001';
         $initialStock = (float) ($validated['current_stock'] ?? 0);
 
@@ -91,10 +95,10 @@ class InventoryPageController extends Controller
         return redirect()->route('inventory.index')->with('success', 'Inventory berhasil dibuat.');
     }
 
-    public function update(Request $request, string $guid): RedirectResponse
+    public function update(UpdateInventoryRequest $request, string $guid): RedirectResponse
     {
         $inventory = ProductInventory::query()->where('guid', $guid)->firstOrFail();
-        $validated = $request->validate($this->rules($inventory));
+        $validated = $request->validated();
         $guidCabang = $validated['guid_cabang'] ?? 'aaaaaaaa-aaaa-4000-8000-000000000001';
 
         $duplicate = ProductInventory::query()
@@ -127,14 +131,9 @@ class InventoryPageController extends Controller
         return redirect()->route('inventory.index')->with('success', 'Inventory berhasil dihapus.');
     }
 
-    public function adjust(Request $request): RedirectResponse
+    public function adjust(AdjustInventoryRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'product_guid' => ['required', 'string', Rule::exists(Product::class, 'guid')],
-            'type' => ['required', 'string', 'in:in,out'],
-            'qty' => ['required', 'numeric', 'min:0.01'],
-            'notes' => ['nullable', 'string', 'max:500'],
-        ]);
+        $validated = $request->validated();
 
         $inventory = ProductInventory::query()
             ->where('product_guid', $validated['product_guid'])
@@ -160,17 +159,6 @@ class InventoryPageController extends Controller
         $msg = $validated['type'] === 'in' ? 'Stok berhasil ditambahkan.' : 'Stok berhasil dikurangi.';
 
         return redirect()->route('inventory.index')->with('success', $msg);
-    }
-
-    private function authUserGuid(Request $request): ?string
-    {
-        $userId = $request->session()->get('web_auth_user_id');
-
-        if (! $userId) {
-            return null;
-        }
-
-        return AuthenticationUser::query()->where('id', $userId)->value('guid');
     }
 
     public function historyIndex(Request $request): Response
@@ -308,18 +296,6 @@ class InventoryPageController extends Controller
             'inventory' => $this->inventoryData($inventory),
             'history' => $history,
         ]);
-    }
-
-    private function rules(?ProductInventory $inventory = null): array
-    {
-        return [
-            'product_guid' => ['required', 'string', Rule::exists(Product::class, 'guid')],
-            'guid_cabang' => ['nullable', 'string', 'max:50'],
-            'unit' => ['nullable', 'string', 'max:20'],
-            'current_stock' => ['nullable', 'numeric', 'min:0'],
-            'minimum_stock' => ['nullable', 'numeric', 'min:0'],
-            'is_active' => ['nullable', 'boolean'],
-        ];
     }
 
     private ?\Illuminate\Support\Collection $cabangMap = null;

@@ -2,32 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Cabang;
-use App\Models\Category;
+use App\Http\Requests\Product\IndexProductRequest;
+use App\Http\Requests\Product\StoreProductRequest;
+use App\Http\Requests\Product\UpdateProductRequest;
 use App\Models\Product;
-use App\Models\ProductGroup;
 use App\Traits\Filterable;
 use App\Traits\StoresCatalogImages;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
     use Filterable;
     use StoresCatalogImages;
 
-    public function index(Request $request): JsonResponse
+    public function index(IndexProductRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'order' => ['nullable', 'string', 'in:name,sku,description,price,guid_cabang,is_active,created_at,updated_at'],
-            'sort' => ['nullable', 'string', 'in:ASC,DESC'],
-        ]);
-
         $query = Product::query()->with(['category', 'group']);
         $this->applyFilter($request, $query, ['guid', 'sku', 'category_guid', 'group_guid', 'guid_cabang', 'is_active']);
 
@@ -37,15 +27,9 @@ class ProductController extends Controller
         return $this->apiResponse('00', 'success', $products);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreProductRequest $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), $this->rules());
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
+        $validated = $request->validated();
 
         $product = Product::query()->create([
             'guid' => (string) Str::uuid(),
@@ -74,33 +58,14 @@ class ProductController extends Controller
         return $this->apiResponse('00', 'success', $this->productData($product));
     }
 
-    public function update(Request $request): JsonResponse
+    public function update(UpdateProductRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'guid' => ['required', 'string', Rule::exists(Product::class, 'guid')],
-            'category_guid' => ['required', 'string', Rule::exists(Category::class, 'guid')],
-            'group_guid' => ['required', 'string', Rule::exists(ProductGroup::class, 'guid')],
-            'name' => ['required', 'string', 'max:150'],
-            'description' => ['nullable', 'string'],
-            'image' => $this->imageRule(),
-            'price' => ['nullable', 'numeric', 'min:0'],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
-
+        $validated = $request->validated();
         $product = $this->findProduct($validated['guid']);
 
         if (! $product) {
             return $this->apiResponse('01', 'failed', null, 'Product not found.', 'Produk tidak ditemukan.', 404);
         }
-
-        $rules = $this->rules($product);
-        $validator = Validator::make($request->all(), $rules);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
 
         $product->update([
             'sku' => $validated['sku'] ?? $product->sku,
@@ -137,21 +102,6 @@ class ProductController extends Controller
             ->with(['category', 'group'])
             ->where('guid', $guid)
             ->first();
-    }
-
-    private function rules(?Product $product = null): array
-    {
-        return [
-            'sku' => ['nullable', 'string', 'max:50', Rule::unique(Product::class, 'sku')->ignore($product?->id)],
-            'category_guid' => ['required', 'string', Rule::exists(Category::class, 'guid')],
-            'group_guid' => ['required', 'string', Rule::exists(ProductGroup::class, 'guid')],
-            'name' => ['required', 'string', 'max:150', Rule::unique(Product::class, 'name')->ignore($product?->id)],
-            'description' => ['nullable', 'string'],
-            'image' => $this->imageRule(),
-            'price' => ['nullable', 'numeric', 'min:0'],
-            'guid_cabang' => ['nullable', 'string', Rule::exists(Cabang::class, 'guid')],
-            'is_active' => ['nullable', 'boolean'],
-        ];
     }
 
     private function productData(Product $product): array

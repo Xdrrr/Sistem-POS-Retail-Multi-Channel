@@ -2,33 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Token\AuthTokenRequest;
 use App\Models\ApiClient;
 use App\Models\ApiToken;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Carbon;
 
 class TokenAuthController extends Controller
 {
-    public function auth(Request $request): JsonResponse
+    public function auth(AuthTokenRequest $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'app_name' => ['required', 'string', 'max:100'],
-            'app_key' => ['required', 'string', 'max:255'],
-            'device_id' => ['required', 'string', 'max:255'],
-            'device_type' => ['required', 'string', 'max:100'],
-            'fcm_token' => ['nullable', 'string'],
-            'ip_address' => ['required', 'ip'],
-        ]);
-
-        if ($validator->fails()) {
-            return $this->apiResponse('99', 'failed', null, 'Validation failed.', 'Validasi gagal.', 422);
-        }
-
-        $validated = $validator->validated();
+        $validated = $request->validated();
 
         $client = ApiClient::query()
             ->where('app_name', $validated['app_name'])
@@ -125,28 +112,6 @@ class TokenAuthController extends Controller
             'is_login' => false,
             'user_login' => '',
         ]);
-    }
-
-    protected function apiResponse(
-        string $code,
-        string $status,
-        mixed $data = null,
-        string $messageEn = 'Success',
-        string $messageId = 'Sukses',
-        int $httpStatus = 200,
-    ): JsonResponse {
-        return response()->json([
-            'app_name' => config('app.name'),
-            'version' => config('app.version'),
-            'build' => '1',
-            'response' => [
-                'code' => $code,
-                'status' => $status,
-                'data' => $data,
-                'message_en' => $messageEn,
-                'message_id' => $messageId,
-            ],
-        ], $httpStatus);
     }
 
     /**

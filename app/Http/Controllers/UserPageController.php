@@ -2,20 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Web\User\StoreUserRequest;
+use App\Http\Requests\Web\User\UpdateUserRequest;
 use App\Models\AuthenticationRole;
 use App\Models\AuthenticationUser;
 use App\Models\AuthenticationUserDetail;
 use App\Models\Cabang;
+use App\Traits\HashesPasswords;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class UserPageController extends Controller
 {
+    use HashesPasswords;
     public function index(): Response
     {
         $users = AuthenticationUser::query()
@@ -52,19 +54,9 @@ class UserPageController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreUserRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'username' => ['required', 'email', 'max:255', Rule::unique(AuthenticationUser::class, 'username')],
-            'password' => ['required', 'string', 'min:6'],
-            'confirm_password' => ['required', 'same:password'],
-            'role_guid' => ['required', 'string', Rule::exists(AuthenticationRole::class, 'guid')],
-            'guid_cabang' => ['nullable', 'string', Rule::exists(Cabang::class, 'guid')],
-            'full_name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'phone_number' => ['nullable', 'string', 'max:50'],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         $role = AuthenticationRole::query()->where('guid', $validated['role_guid'])->firstOrFail();
 
@@ -100,21 +92,10 @@ class UserPageController extends Controller
         return redirect()->route('users.index')->with('success', 'User berhasil dibuat.');
     }
 
-    public function update(Request $request, string $guid): RedirectResponse
+    public function update(UpdateUserRequest $request, string $guid): RedirectResponse
     {
         $user = AuthenticationUser::query()->where('guid', $guid)->firstOrFail();
-
-        $validated = $request->validate([
-            'username' => ['required', 'email', 'max:255', Rule::unique(AuthenticationUser::class, 'username')->ignore($user->id)],
-            'role_guid' => ['required', 'string', Rule::exists(AuthenticationRole::class, 'guid')],
-            'guid_cabang' => ['nullable', 'string', Rule::exists(Cabang::class, 'guid')],
-            'full_name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'phone_number' => ['nullable', 'string', 'max:50'],
-            'is_active' => ['nullable', 'boolean'],
-            'password' => ['nullable', 'string', 'min:6'],
-            'confirm_password' => ['nullable', 'same:password'],
-        ]);
+        $validated = $request->validated();
 
         $role = AuthenticationRole::query()->where('guid', $validated['role_guid'])->firstOrFail();
 
@@ -151,10 +132,5 @@ class UserPageController extends Controller
         AuthenticationUser::query()->where('guid', $guid)->firstOrFail()->update(['is_active' => false]);
 
         return redirect()->route('users.index')->with('success', 'User dinonaktifkan.');
-    }
-
-    private function passwordHash(string $password, string $salt): string
-    {
-        return base64_encode(hash('sha256', $password.$salt, true));
     }
 }

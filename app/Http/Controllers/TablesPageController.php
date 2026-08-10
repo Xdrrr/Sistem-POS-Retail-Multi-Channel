@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Web\Table\StoreTableRequest;
+use App\Http\Requests\Web\Table\UpdateTableRequest;
 use App\Models\Cabang;
 use App\Models\RestaurantTable;
 use App\Models\TableReservation;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -30,15 +30,9 @@ class TablesPageController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreTableRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'table_number' => ['required', 'string', 'max:30', Rule::unique(RestaurantTable::class, 'table_number')],
-            'capacity' => ['nullable', 'integer', 'min:1'],
-            'location' => ['nullable', 'string', 'in:indoor,outdoor'],
-            'status' => ['nullable', 'string', 'in:available,maintenance'],
-            'guid_cabang' => ['nullable', 'string'],
-        ]);
+        $validated = $request->validated();
 
         RestaurantTable::query()->create([
             'guid' => (string) Str::uuid(),
@@ -53,15 +47,10 @@ class TablesPageController extends Controller
         return redirect()->route('tables.index')->with('success', 'Meja berhasil dibuat.');
     }
 
-    public function update(Request $request, string $guid): RedirectResponse
+    public function update(UpdateTableRequest $request, string $guid): RedirectResponse
     {
         $table = RestaurantTable::query()->where('guid', $guid)->firstOrFail();
-        $validated = $request->validate([
-            'table_number' => ['required', 'string', 'max:30', Rule::unique(RestaurantTable::class, 'table_number')->ignore($table->id)],
-            'capacity' => ['nullable', 'integer', 'min:1'],
-            'location' => ['nullable', 'string', 'in:indoor,outdoor'],
-            'status' => ['nullable', 'string', 'in:available,maintenance'],
-        ]);
+        $validated = $request->validated();
 
         $table->update($validated);
 

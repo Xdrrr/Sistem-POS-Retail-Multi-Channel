@@ -18,12 +18,12 @@ class AuthenticationUserSeeder extends Seeder
 
         DB::transaction(function () use ($role, $salt): void {
             $user = AuthenticationUser::query()->firstOrCreate(
-                ['username' => 'xander@wit.id'],
+                ['username' => 'xander@gmail.com'],
                 [
                     'guid' => (string) Str::uuid(),
                     'role_id' => $role->id,
                     'guid_cabang' => 'aaaaaaaa-aaaa-4000-8000-000000000001',
-                    'password' => $this->passwordHash('wit.id', $salt),
+                    'password' => $this->passwordHash('gmail.com', $salt),
                     'salt' => $salt,
                     'is_active' => true,
                     'url_image' => 'https://storage.googleapis.com/gavra-invest-storage-production/b55ccd10-0ab2-4462-ba78-4d47367fe3f3.jpg',
@@ -38,7 +38,7 @@ class AuthenticationUserSeeder extends Seeder
                 ['user_id' => $user->id],
                 [
                     'phone_number' => '02212',
-                    'email' => 'xander@wit.id',
+                    'email' => 'xander@gmail.com',
                     'full_name' => 'Xander',
                     'gender' => 'Laki-laki',
                     'address' => 'WIT',
