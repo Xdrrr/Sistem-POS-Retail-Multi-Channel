@@ -2,25 +2,36 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
+// Map each nav item to the permission required to see it.
+// Items without a `permission` key are always visible (e.g. Settings).
 const navItems = [
-    { label: 'Home', icon: 'home', href: '/' },
-    // { label: 'New Sale', icon: 'add_shopping_cart', href: '/orders', activeWhen: null },
-    // { label: 'Orders', icon: 'receipt_long', href: '/orders' },
-    { label: 'Reservation', icon: 'event_seat', href: '/reservations' },
-    { label: 'Tables', icon: 'grid_view', href: '/tables' },
-    { label: 'Shift', icon: 'calendar_today', href: '/shifts' },
-    { label: 'Reports', icon: 'bar_chart', href: '/reports' },
-    // { label: 'History <br> Export', icon: 'history', href: '/reports/exports' },
-    { label: 'Products', icon: 'inventory_2', href: '/catalog' },
-    { label: 'Inventory', icon: 'warehouse', href: '/inventory' },
-    { label: 'Cabang', icon: 'store', href: '/cabang' },
-    { label: 'Users', icon: 'manage_accounts', href: '/users' },
-    { label: 'Permissions', icon: 'manage_accounts', href: '/permissions' },
-    // { label: 'Sync Center', icon: 'sync', href: '#' },
+    { label: 'Home', icon: 'home', href: '/', permission: 'menu.dashboard' },
+    { label: 'Orders', icon: 'receipt_long', href: '/orders', permission: 'menu.orders' },
+    { label: 'Reservation', icon: 'event_seat', href: '/reservations', permission: 'menu.reservation' },
+    { label: 'Tables', icon: 'grid_view', href: '/tables', permission: 'menu.tables' },
+    { label: 'Shift', icon: 'calendar_today', href: '/shifts', permission: 'menu.shift' },
+    { label: 'Reports', icon: 'bar_chart', href: '/reports', permission: 'menu.reports' },
+    { label: 'Products', icon: 'inventory_2', href: '/catalog', permission: 'menu.catalog' },
+    { label: 'Inventory', icon: 'warehouse', href: '/inventory', permission: 'menu.inventory' },
+    { label: 'Cabang', icon: 'store', href: '/cabang', permission: 'menu.cabang' },
+    { label: 'Users', icon: 'manage_accounts', href: '/users', permission: 'menu.users' },
+    { label: 'Permissions', icon: 'manage_accounts', href: '/permissions', permission: 'menu.roles' },
     { label: 'Settings', icon: 'settings', href: '/settings/profile' },
 ];
 
 const page = usePage();
+
+const userPermissions = computed(() => {
+    const perms = page.props.auth?.user?.permissions;
+    return Array.isArray(perms) ? new Set(perms) : new Set();
+});
+
+const visibleNavItems = computed(() =>
+    navItems.filter((item) => {
+        if (!item.permission) return true;
+        return userPermissions.value.has(item.permission);
+    }),
+);
 
 const currentPath = computed(() => {
     const url = page.url || '/';
@@ -49,7 +60,7 @@ const isActive = (item) => {
 
             <div class="nav-list">
                 <Link
-                    v-for="item in navItems"
+                    v-for="item in visibleNavItems"
                     :key="item.label"
                     class="nav-item"
                     :class="{ 'nav-item--active': isActive(item) }"

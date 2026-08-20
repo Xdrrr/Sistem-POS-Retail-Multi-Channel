@@ -59,7 +59,7 @@ class HandleInertiaRequests extends Middleware
         }
 
         $user = AuthenticationUser::query()
-            ->with(['role', 'detail'])
+            ->with(['role.permissions', 'detail'])
             ->find($userId);
 
         if (! $user) {
@@ -73,6 +73,9 @@ class HandleInertiaRequests extends Middleware
             'guid_cabang' => $user->guid_cabang,
             'username' => $user->username,
             'role' => $user->role?->name,
+            'permissions' => $user->role
+                ? $user->role->permissions()->pluck('name')->toArray()
+                : [],
             'url_image' => $user->url_image,
             'detail' => [
                 'full_name' => $user->detail?->full_name ?? $user->username,

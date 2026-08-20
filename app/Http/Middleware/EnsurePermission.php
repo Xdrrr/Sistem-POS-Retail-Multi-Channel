@@ -55,6 +55,8 @@ class EnsurePermission
             ], 403);
         }
 
-        abort(403, 'Forbidden.');
+        // For web requests, redirect back or to home with an error flash
+        return redirect()->back()->withErrors(['permission' => 'Anda tidak memiliki akses ke halaman ini.'])
+            ->fallback(redirect('/'));
     }
 }

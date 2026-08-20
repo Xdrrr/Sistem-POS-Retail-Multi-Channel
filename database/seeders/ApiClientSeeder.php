@@ -11,9 +11,9 @@ class ApiClientSeeder extends Seeder
     public function run(): void
     {
         ApiClient::query()->updateOrCreate(
-            ['app_name' => 'wit-dev'],
+            ['app_name' => 'app-dev'],
             [
-                'app_key_hash' => Hash::make('w1t-d3V'),
+                'app_key_hash' => Hash::make('app-d3V'),
                 'is_active' => true,
             ],
         );

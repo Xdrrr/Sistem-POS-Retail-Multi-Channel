@@ -12,6 +12,7 @@ class PermissionSeeder extends Seeder
     private array $permissions = [
         // Web Menu
         ['name' => 'menu.dashboard', 'display_name' => 'Menu Dashboard', 'group' => 'dashboard', 'type' => 'web'],
+        ['name' => 'menu.orders', 'display_name' => 'Menu Orders', 'group' => 'orders', 'type' => 'web'],
         ['name' => 'menu.reservation', 'display_name' => 'Menu Reservasi', 'group' => 'reservation', 'type' => 'web'],
         ['name' => 'menu.tables', 'display_name' => 'Menu Meja', 'group' => 'tables', 'type' => 'web'],
         ['name' => 'menu.shift', 'display_name' => 'Menu Shift', 'group' => 'shift', 'type' => 'web'],
@@ -112,10 +113,10 @@ class PermissionSeeder extends Seeder
     private array $rolePermissions = [
         'Superadmin' => '*',
         'Owner' => [
-            'menu.dashboard', 'menu.reports', 'menu.exports',
+            'menu.dashboard', 'menu.orders', 'menu.reports', 'menu.exports',
         ],
         'Manager' => [
-            'menu.dashboard', 'menu.reservation', 'menu.tables', 'menu.shift',
+            'menu.dashboard', 'menu.orders', 'menu.reservation', 'menu.tables', 'menu.shift',
             'menu.reports', 'menu.exports', 'menu.catalog', 'menu.inventory',
             'menu.cabang', 'menu.users', 'menu.roles',
             'api.products.index', 'api.products.show',

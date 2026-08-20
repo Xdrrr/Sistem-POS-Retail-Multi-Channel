@@ -21,8 +21,8 @@ class ShiftSeeder extends Seeder
             return;
         }
 
-        $ahmad = $this->cashier('ahmad@wit.id', 'Ahmad Fauzi', 'ahmad123', $cashierRole);
-        $dewi = $this->cashier('dewi@wit.id', 'Dewi Lestari', 'dewi123', $cashierRole);
+        $ahmad = $this->cashier('ahmad@gmail.com', 'Ahmad Fauzi', '123456', $cashierRole);
+        $dewi = $this->cashier('dewi@gmail.com', 'Dewi Lestari', '123456', $cashierRole);
 
         DB::transaction(function () use ($ahmad, $dewi): void {
             $closedShift = $this->makeShift(
